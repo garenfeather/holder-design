@@ -1,0 +1,60 @@
+[
+  {
+    "id": "tpl_1756800111751",
+    "name": "test-real",
+    "fileName": "test-real.psd",
+    "originalFileName": "test-real.psd",
+    "savedFileName": "tpl_1756800111751.psd",
+    "restoredFileName": "tpl_1756800111751_restored.psd",
+    "previewImage": "tpl_1756800111751_preview.png",
+    "referenceImage": "tpl_1756800111751_reference.png",
+    "size": 976696,
+    "uploadedAt": "2025-09-02T16:02:03.918873",
+    "status": "ready",
+    "dimensions": {
+      "width": 3508,
+      "height": 2480
+    },
+    "layers": [
+      "view",
+      "part1",
+      "part2",
+      "part3",
+      "part4"
+    ],
+    "viewLayer": {
+      "width": 1945,
+      "height": 878,
+      "left": 888,
+      "top": 586,
+      "right": 2833,
+      "bottom": 1464
+    },
+    "components": [
+      {
+        "id": "comp_1756824236571",
+        "name": "left",
+        "fileName": "tpl_1756800111751_comp_1756824236571.png",
+        "originalName": "left.png",
+        "uploadedAt": "2025-09-02T22:43:56.571989",
+        "size": 10263,
+        "dimensions": {
+          "width": 1945,
+          "height": 878
+        }
+      },
+      {
+        "id": "comp_1756825037989",
+        "name": "right",
+        "fileName": "tpl_1756800111751_comp_1756825037989.png",
+        "originalName": "right.png",
+        "uploadedAt": "2025-09-02T22:57:17.990023",
+        "size": 10258,
+        "dimensions": {
+          "width": 1945,
+          "height": 878
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python virtual environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Logs and caches
+*.log
+*.tmp
+*.swp
+*.swo
+*.out
+*.pid
+*.seed
+*.cover
+coverage/
+.coverage*
+.pytest_cache/
+.cache/
+
+# IDE & tooling
+.idea/
+.vscode/
+*.iml
+*.sublime-*
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# PSD and other large design binaries
+*.psd
+*.psb
+
+# Generated assets
+output_psd_slice/
+
+# Storage cache artifacts
+storage/cache/
+storage/temp/
+
+# Misc
+Thumbs.db
+
+# Common image formats
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.svg
