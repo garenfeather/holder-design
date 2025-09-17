@@ -26,19 +26,27 @@ from psd_transformer import BinaryPSDTransformer
 from psd_replacer import PSDReplacer
 from psd_tools import PSDImage
 from utils.strings import sanitize_name
+from config import get_storage_root
 
 class PSDProcessorCore:
     """PSD处理核心类"""
     
     def __init__(self):
         self.required_layers = ["view", "part1", "part2", "part3", "part4"]
-        self.templates_dir = Path(__file__).parent / "storage" / "templates"
-        self.inside_dir = Path(__file__).parent / "storage" / "inside"
-        self.previews_dir = Path(__file__).parent / "storage" / "previews"
-        self.references_dir = Path(__file__).parent / "storage" / "references"
-        self.components_dir = Path(__file__).parent / "storage" / "components"
-        self.temp_dir = Path(__file__).parent / "storage" / "temp"
+        storage_root = get_storage_root()
+        self.templates_dir = storage_root / "templates"
+        self.inside_dir = storage_root / "inside"
+        self.previews_dir = storage_root / "previews"
+        self.references_dir = storage_root / "references"
+        self.components_dir = storage_root / "components"
+        # 新的result目录结构
+        self.results_dir = storage_root / "results"
+        self.result_previews_dir = self.results_dir / "previews"
+        self.result_downloads_dir = self.results_dir / "downloads"
+        # 保留temp_dir的引用以兼容现有代码，实际指向results目录
+        self.temp_dir = self.results_dir
         self.templates_index_file = self.templates_dir / "templates.json"
+        self.results_index_file = self.results_dir / "results_index.json"
         self._ensure_storage_dirs()
     
     def validate_psd(self, psd_path):
@@ -131,9 +139,38 @@ class PSDProcessorCore:
         self.previews_dir.mkdir(parents=True, exist_ok=True)
         self.references_dir.mkdir(parents=True, exist_ok=True)
         self.components_dir.mkdir(parents=True, exist_ok=True)
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        # 创建新的results目录结构
+        self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.result_previews_dir.mkdir(parents=True, exist_ok=True)
+        self.result_downloads_dir.mkdir(parents=True, exist_ok=True)
         if not self.templates_index_file.exists():
             self._save_templates_index([])
+
+    def _cleanup_temp_files(self, result_id):
+        """清理生成过程中的临时文件，只保留最终的PSD和预览图"""
+        try:
+            temp_files = [
+                f"{result_id}_result.psd",               # 中间步骤PSD
+                f"{result_id}_step1_aligned_image.png",  # 对齐后的源图片
+                f"{result_id}_step1_aligned_template.psd"  # 对齐后的模板（如果存在）
+            ]
+
+            cleanup_count = 0
+            for temp_file in temp_files:
+                temp_path = self.temp_dir / temp_file
+                if temp_path.exists():
+                    try:
+                        temp_path.unlink()
+                        cleanup_count += 1
+                        print(f"已清理临时文件: {temp_file}")
+                    except Exception as e:
+                        print(f"清理文件失败 {temp_file}: {e}")
+
+            if cleanup_count > 0:
+                print(f"临时文件清理完成，共清理 {cleanup_count} 个文件")
+
+        except Exception as e:
+            print(f"清理临时文件时出错: {e}")
     
     def _load_templates_index(self):
         """加载模板索引"""
@@ -669,7 +706,16 @@ class PSDProcessorCore:
             preview_success, preview_path = self._generate_final_preview(
                 final_path, result_id
             )
-            
+
+            # 步骤5: 如果预览图生成成功，添加到索引
+            if preview_success:
+                template_name = template.get('name', f'Template_{template_id}')
+                index_success = self._add_to_results_index(result_id, template_id, template_name)
+                if index_success:
+                    print(f"索引记录已添加: {result_id}")
+                else:
+                    print(f"索引记录添加失败: {result_id}")
+
             # 准备返回数据
             result_data = {
                 'resultId': result_id,
@@ -681,12 +727,20 @@ class PSDProcessorCore:
             }
             
             print(f"生成流程完成: {result_id}")
+
+            # 清理临时文件
+            self._cleanup_temp_files(result_id)
+
             return True, result_data
-            
+
         except Exception as e:
             print(f"生成最终PSD失败: {e}")
             import traceback
             print(traceback.format_exc())
+
+            # 出错时也要清理临时文件
+            self._cleanup_temp_files(result_id)
+
             return False, str(e)
     
     def _apply_psd_replacer(self, template_psd_path, image_path, result_id):
@@ -1404,7 +1458,7 @@ class PSDProcessorCore:
                 return False, "输入PSD文件不存在"
             
             final_filename = f"{result_id}_final.psd"
-            final_path = self.temp_dir / final_filename
+            final_path = self.result_downloads_dir / final_filename
             print(f"输出文件路径: {final_path}", flush=True, file=sys.stderr)
             
             # 使用transform_template_final进行最终变换
@@ -1434,7 +1488,7 @@ class PSDProcessorCore:
             print(f"开始生成最终预览图，PSD路径: {final_psd_path}", flush=True, file=sys.stderr)
             
             preview_filename = f"{result_id}_final_preview.png"
-            preview_path = self.temp_dir / preview_filename
+            preview_path = self.result_previews_dir / preview_filename
             
             # 检查PSD文件是否存在
             if not Path(final_psd_path).exists():
@@ -1901,6 +1955,85 @@ class PSDProcessorCore:
             
             # 严格模式：直接抛出异常而不是返回False
             raise e
+
+    # ===== 索引维护方法 =====
+
+    def _load_results_index(self):
+        """加载索引文件"""
+        try:
+            if self.results_index_file.exists():
+                with open(self.results_index_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            else:
+                return {
+                    "version": "1.0",
+                    "last_updated": datetime.now().isoformat(),
+                    "results": {}
+                }
+        except Exception as e:
+            print(f"加载索引文件失败: {e}", file=sys.stderr)
+            return {
+                "version": "1.0",
+                "last_updated": datetime.now().isoformat(),
+                "results": {}
+            }
+
+    def _save_results_index(self, index_data):
+        """保存索引文件"""
+        try:
+            index_data["last_updated"] = datetime.now().isoformat()
+            with open(self.results_index_file, 'w', encoding='utf-8') as f:
+                json.dump(index_data, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"保存索引文件失败: {e}", file=sys.stderr)
+            return False
+
+    def _add_to_results_index(self, result_id, template_id, template_name):
+        """新增结果到索引"""
+        try:
+            index_data = self._load_results_index()
+
+            # 获取PSD文件大小
+            psd_path = self.result_downloads_dir / f"{result_id}_final.psd"
+            final_psd_size = psd_path.stat().st_size if psd_path.exists() else 0
+
+            index_data["results"][result_id] = {
+                "id": result_id,
+                "template_id": template_id,
+                "template_name": template_name,
+                "created_at": datetime.now().isoformat(),
+                "final_psd_size": final_psd_size
+            }
+
+            return self._save_results_index(index_data)
+        except Exception as e:
+            print(f"添加索引记录失败: {e}", file=sys.stderr)
+            return False
+
+    def _remove_from_results_index(self, result_id):
+        """从索引中删除结果"""
+        try:
+            index_data = self._load_results_index()
+            if result_id in index_data["results"]:
+                del index_data["results"][result_id]
+                return self._save_results_index(index_data)
+            return True
+        except Exception as e:
+            print(f"删除索引记录失败: {e}", file=sys.stderr)
+            return False
+
+    def _update_results_index(self, result_id, **updates):
+        """更新索引中的结果信息"""
+        try:
+            index_data = self._load_results_index()
+            if result_id in index_data["results"]:
+                index_data["results"][result_id].update(updates)
+                return self._save_results_index(index_data)
+            return False
+        except Exception as e:
+            print(f"更新索引记录失败: {e}", file=sys.stderr)
+            return False
 
 
 # 创建全局实例

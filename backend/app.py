@@ -305,7 +305,7 @@ def generate_final_psd():
 def download_final_psd(result_id):
     """下载最终生成的PSD文件"""
     try:
-        final_psd_path = processor_core.temp_dir / f"{result_id}_final.psd"
+        final_psd_path = processor_core.result_downloads_dir / f"{result_id}_final.psd"
         
         if not final_psd_path.exists():
             return json_error('文件不存在', 404)
@@ -325,7 +325,7 @@ def download_final_psd(result_id):
 def get_final_preview(result_id):
     """获取最终结果的预览图"""
     try:
-        preview_path = processor_core.temp_dir / f"{result_id}_final_preview.png"
+        preview_path = processor_core.result_previews_dir / f"{result_id}_final_preview.png"
         
         if not preview_path.exists():
             return json_error('预览图不存在', 404)
