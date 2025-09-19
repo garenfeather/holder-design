@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Package, Wifi, WifiOff } from 'lucide-react';
 import { TemplateBox } from './components/TemplateBox.tsx';
+import { ResultsBox } from './components/ResultsBox.tsx';
 import { UploadModal } from './components/UploadModal.tsx';
 import { PreviewModal } from './components/PreviewModal.tsx';
 import { Template } from './types/index.ts';
@@ -14,6 +15,7 @@ function App() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const [activeTab, setActiveTab] = useState<'templates' | 'results'>('templates');
   const backendAddress = `${appConfig.domain}:8012`;
 
   useEffect(() => {
@@ -106,6 +108,28 @@ function App() {
 
       {/* 主内容 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab 导航 */}
+        <div className="mb-6 flex justify-center">
+          <div className="inline-flex bg-white border border-gray-200 rounded-lg p-0.5">
+            <button
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'templates' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('templates')}
+            >
+              模板箱子
+            </button>
+            <button
+              className={`ml-0.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'results' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('results')}
+            >
+              生成素材管理
+            </button>
+          </div>
+        </div>
+
         {isServerOnline === false && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-in">
             <div className="flex items-center">
@@ -124,12 +148,16 @@ function App() {
 
         {/* 页面内容 */}
         <div className="animate-fade-in">
-          <TemplateBox
-            onCreateNew={() => setIsUploadModalOpen(true)}
-            onTemplateSelect={handleTemplateSelect}
-            onTemplatePreview={handleTemplatePreview}
-            refreshTrigger={refreshCounter}
-          />
+          {activeTab === 'templates' ? (
+            <TemplateBox
+              onCreateNew={() => setIsUploadModalOpen(true)}
+              onTemplateSelect={handleTemplateSelect}
+              onTemplatePreview={handleTemplatePreview}
+              refreshTrigger={refreshCounter}
+            />
+          ) : (
+            <ResultsBox />
+          )}
         </div>
       </main>
 
@@ -143,20 +171,24 @@ function App() {
         </div>
       </footer>
 
-      {/* 上传模态框 */}
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUploadSuccess={handleUploadSuccess}
-        onUploadError={handleUploadError}
-      />
+      {/* 上传模态框（仅模板Tab使用） */}
+      {activeTab === 'templates' && (
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUploadSuccess={handleUploadSuccess}
+          onUploadError={handleUploadError}
+        />
+      )}
 
-      {/* 预览模态框 */}
-      <PreviewModal
-        isOpen={isPreviewModalOpen}
-        onClose={() => setIsPreviewModalOpen(false)}
-        template={previewTemplate}
-      />
+      {/* 预览模态框（仅模板Tab使用） */}
+      {activeTab === 'templates' && (
+        <PreviewModal
+          isOpen={isPreviewModalOpen}
+          onClose={() => setIsPreviewModalOpen(false)}
+          template={previewTemplate}
+        />
+      )}
     </div>
   );
 }

@@ -339,6 +339,186 @@ def get_final_preview(result_id):
         print(f"获取预览图时出错: {str(e)}")
         return json_error(f'获取预览图失败: {str(e)}', 500)
 
+@app.route('/api/results', methods=['GET'])
+def get_results_list():
+    """获取生成结果列表（基于索引文件）"""
+    try:
+        # 直接读取索引文件
+        index_data = processor_core._load_results_index()
+
+        # 转换为前端需要的格式
+        results = []
+        for result_id, result_info in index_data.get('results', {}).items():
+            results.append({
+                'id': result_info['id'],
+                'templateId': result_info['template_id'],
+                'templateName': result_info['template_name'],
+                'createdAt': result_info['created_at']
+            })
+
+        # 按创建时间倒序排列（最新的在前）
+        results.sort(key=lambda x: x['createdAt'], reverse=True)
+
+        return jsonify({
+            'success': True,
+            'data': results
+        })
+
+    except Exception as e:
+        print(f"获取结果列表失败: {e}")
+        return json_error(f'获取结果列表失败: {str(e)}', 500)
+
+@app.route('/api/results/<result_id>/info', methods=['GET'])
+def get_result_info(result_id):
+    """获取结果详细信息"""
+    try:
+        # 从索引中获取基本信息
+        index_data = processor_core._load_results_index()
+        result_info = index_data.get('results', {}).get(result_id)
+
+        if not result_info:
+            return json_error('结果不存在', 404)
+
+        # 检查文件是否存在
+        preview_path = processor_core.result_previews_dir / f"{result_id}_final_preview.png"
+        psd_path = processor_core.result_downloads_dir / f"{result_id}_final.psd"
+
+        # 构建详细信息
+        detailed_info = {
+            'id': result_info['id'],
+            'templateId': result_info['template_id'],
+            'templateName': result_info['template_name'],
+            'createdAt': result_info['created_at'],
+            'finalPsdSize': result_info['final_psd_size'],
+            'previewExists': preview_path.exists(),
+            'psdExists': psd_path.exists(),
+            'previewUrl': f"/api/results/{result_id}/preview" if preview_path.exists() else None,
+            'downloadUrl': f"/api/results/{result_id}/download" if psd_path.exists() else None
+        }
+
+        return jsonify({
+            'success': True,
+            'data': detailed_info
+        })
+
+    except Exception as e:
+        print(f"获取结果详情失败: {e}")
+        return json_error(f'获取结果详情失败: {str(e)}', 500)
+
+@app.route('/api/results/<result_id>/delete', methods=['DELETE'])
+def delete_result(result_id):
+    """删除生成结果"""
+    try:
+        # 删除文件
+        preview_path = processor_core.result_previews_dir / f"{result_id}_final_preview.png"
+        psd_path = processor_core.result_downloads_dir / f"{result_id}_final.psd"
+
+        deleted_files = []
+        if preview_path.exists():
+            preview_path.unlink()
+            deleted_files.append('preview')
+
+        if psd_path.exists():
+            psd_path.unlink()
+            deleted_files.append('psd')
+
+        # 从索引中删除记录
+        success = processor_core._remove_from_results_index(result_id)
+
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'结果已删除，清理了文件: {", ".join(deleted_files) if deleted_files else "无文件"}'
+            })
+        else:
+            return json_error('删除索引记录失败', 500)
+
+    except Exception as e:
+        print(f"删除结果失败: {e}")
+        return json_error(f'删除结果失败: {str(e)}', 500)
+
+@app.route('/api/results/cleanup', methods=['POST'])
+def cleanup_results():
+    """按数量/天数清理旧结果
+
+    body: {
+      keepRecent?: int,          # 保留最近N条（可选）
+      olderThanDays?: int,       # 删除早于X天（可选）
+      dryRun?: bool              # 仅预览（不删除）
+    }
+    """
+    try:
+      data = request.get_json(silent=True) or {}
+      keep_recent = data.get('keepRecent')
+      older_than_days = data.get('olderThanDays')
+      dry_run = bool(data.get('dryRun', False))
+
+      index_data = processor_core._load_results_index()
+      results_dict = index_data.get('results', {})
+
+      # 构建列表并按时间倒序
+      items = []
+      for rid, info in results_dict.items():
+          items.append({
+              'id': info.get('id') or rid,
+              'created_at': info.get('created_at')
+          })
+      def parse_dt(s):
+          from datetime import datetime
+          try:
+              return datetime.fromisoformat(s)
+          except Exception:
+              return datetime.min
+      items.sort(key=lambda x: parse_dt(x['created_at']), reverse=True)
+
+      # 需要删除的ID集合
+      to_delete = set()
+
+      if isinstance(keep_recent, int) and keep_recent >= 0:
+          for i in range(keep_recent, len(items)):
+              to_delete.add(items[i]['id'])
+
+      if isinstance(older_than_days, int) and older_than_days > 0:
+          from datetime import datetime, timedelta
+          cutoff = datetime.now() - timedelta(days=older_than_days)
+          for it in items:
+              if parse_dt(it['created_at']) < cutoff:
+                  to_delete.add(it['id'])
+
+      deleted = []
+      failed = []
+
+      if not dry_run:
+          for rid in list(to_delete):
+              try:
+                  preview_path = processor_core.result_previews_dir / f"{rid}_final_preview.png"
+                  psd_path = processor_core.result_downloads_dir / f"{rid}_final.psd"
+                  if preview_path.exists():
+                      preview_path.unlink()
+                  if psd_path.exists():
+                      psd_path.unlink()
+                  ok = processor_core._remove_from_results_index(rid)
+                  if ok:
+                      deleted.append(rid)
+                  else:
+                      failed.append(rid)
+              except Exception:
+                  failed.append(rid)
+
+      return jsonify({
+          'success': True,
+          'totalBefore': len(items),
+          'kept': len(items) - len(to_delete),
+          'toDelete': list(to_delete),
+          'deleted': deleted,
+          'failed': failed,
+          'dryRun': dry_run
+      })
+
+    except Exception as e:
+      print(f"清理结果失败: {e}")
+      return json_error(f'清理结果失败: {str(e)}', 500)
+
 @app.route('/api/process', methods=['POST'])
 def process_psd():
     """处理PSD文件"""

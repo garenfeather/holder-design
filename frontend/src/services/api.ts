@@ -1,4 +1,4 @@
-import { ApiResponse, Template, TemplateValidationResult, GenerateResult, Component } from '../types/index.ts';
+import { ApiResponse, Template, TemplateValidationResult, GenerateResult, Component, Result, ResultDetail } from '../types/index.ts';
 import { appConfig } from '../config.ts';
 
 // 后端基础地址依赖环境配置
@@ -381,6 +381,103 @@ class ApiService {
       URL.revokeObjectURL(url);
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : '下载失败');
+    }
+  }
+
+  // ========== 结果管理相关（Phase 1） ==========
+  async getResults(): Promise<ApiResponse<Result[]>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/results`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, error: errorData.error || '获取结果列表失败' };
+      }
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        const items: Result[] = result.data.map((r: any) => ({
+          id: r.id,
+          templateId: r.templateId,
+          templateName: r.templateName,
+          createdAt: new Date(r.createdAt),
+        }));
+        return { success: true, data: items };
+      }
+      return { success: false, error: result.error || '获取结果列表失败' };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // ========== 结果管理相关（Phase 2） ==========
+  async getResultInfo(resultId: string): Promise<ApiResponse<ResultDetail>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/results/${resultId}/info`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, error: errorData.error || '获取结果详情失败' };
+      }
+      const result = await response.json();
+      if (result.success && result.data) {
+        const d = result.data;
+        const info: ResultDetail = {
+          id: d.id,
+          templateId: d.templateId || d.template_id,
+          templateName: d.templateName || d.template_name,
+          createdAt: new Date(d.createdAt || d.created_at),
+          finalPsdSize: d.finalPsdSize || d.final_psd_size,
+          previewExists: !!d.previewExists,
+          psdExists: !!d.psdExists,
+          previewUrl: d.previewUrl ?? null,
+          downloadUrl: d.downloadUrl ?? null,
+        };
+        return { success: true, data: info };
+      }
+      return { success: false, error: result.error || '获取结果详情失败' };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  async deleteResult(resultId: string): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/results/${resultId}/delete`, { method: 'DELETE' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return { success: false, error: data.error || '删除失败' };
+      }
+      const data = await response.json().catch(() => ({}));
+      return { success: !!data.success, message: data.message };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  async deleteResultsBulk(resultIds: string[]): Promise<{ ok: string[]; failed: string[] }>{
+    const outcomes = await Promise.allSettled(resultIds.map(id => this.deleteResult(id)));
+    const ok: string[] = [];
+    const failed: string[] = [];
+    outcomes.forEach((res, idx) => {
+      const id = resultIds[idx];
+      if (res.status === 'fulfilled' && res.value.success) ok.push(id);
+      else failed.push(id);
+    });
+    return { ok, failed };
+  }
+
+  async cleanupResults(options: { keepRecent?: number; olderThanDays?: number; dryRun?: boolean }): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/results/cleanup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options || {}),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        return { success: false, error: data.error || '清理失败' };
+      }
+      return { success: true, data };
+    } catch {
+      return { success: false, error: '网络错误' };
     }
   }
 }

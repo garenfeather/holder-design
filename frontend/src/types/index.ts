@@ -47,6 +47,27 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+// 生成结果（基础信息，用于列表）
+export interface Result {
+  id: string;
+  templateId: string;
+  templateName: string;
+  createdAt: Date;
+}
+
+// 结果详情（用于详情模态框）
+export interface ResultDetail {
+  id: string;
+  templateId: string;
+  templateName: string;
+  createdAt: Date;
+  finalPsdSize?: number;
+  previewExists: boolean;
+  psdExists: boolean;
+  previewUrl?: string | null;
+  downloadUrl?: string | null;
+}
+
 export interface TemplateValidationResult {
   valid: boolean;
   info?: {
