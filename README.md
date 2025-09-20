@@ -1,161 +1,157 @@
-# 🎯 PSD Template Processor
+# 🎯 Holder Design · PSD 模板管理与生成器
 
-现代化PSD模板图片处理工具 - 简洁、高效、专业
+优雅、简洁、现代化的 PSD 模板管理工具：上传模板、生成 inside（restored）与多种 stroke 版本、参考图预览、按所选“裁切模板”（原始/指定 stroke）进行生成，提供结果管理、下载与清理能力。
 
-## 📋 项目简介
+## 📦 关键特性
 
-一个基于 Flask 的后端服务与前端页面的工具项目：根据PSD模板中的 `part1-4` 图层对用户上传的图片进行智能裁切与变换，生成包装展开图。支持模板入库、预览/参考图生成、尺寸对齐、最终结果预览与下载。
+- 模板入库：校验必需图层（view、part1~4），生成模板预览与编辑参考图，产出 `restored.psd`。
+- 多 stroke 版本：可在上传时配置 `strokeWidths`（如 2/5/8），生成对应 inside PSD 与二阶段透明参考图。
+- 统一参考图渲染：原参考图与 stroke 参考图复用一致的渲染逻辑（仅输入 PSD 不同）。
+- 裁切模板选择：生成时可选“原始 inside”或某个已存在的 stroke inside；仅在点击生成时应用。
+- 结果标注与命名：结果 `result_id` 及文件名追加 `_stroke_{w}px` 后缀；详情返回 `usedStrokeWidth`。
+- 结果管理：列表/详情/下载/删除/批量清理，详情预览样式与“生成结果预览”一致（灰底 + 自适应）。
+- 自动清理：生成过程临时文件会被清理；提供 `clean_storage.sh` 做开发期一键清空。
 
-## 🏗️ 项目结构（实际）
+## 🏗️ 项目结构
 
 ```
-psd-template-processor/
-├── backend/                      # 后端服务 (Flask)
-│   ├── app.py                   # Flask 入口与路由
-│   ├── processor_core.py        # 核心编排：校验/存储/生成
-│   ├── integrated_processor.py  # 一次性处理器 (process 接口使用)
-│   ├── psd_replacer.py          # 按图层形状裁切替换
-│   ├── psd_transformer.py       # 画布扩展/翻转/移动（最终变换）
-│   ├── psd_resizer.py           # PSD尺寸调整(二进制头+边界)
-│   ├── transformer_inside.py    # 逆展开(向内)变换，生成 b.psd
-│   └── transformer_outside.py   # 向外变换（备用）
-├── frontend/                     # 前端应用（可选）
-│   └── package.json 等          # 使用 npm start 本地开发
-├── scripts/                      # 独立脚本（与 backend 功能呼应）
-│   ├── integrated_processor.py
-│   ├── psd_replacer.py
-│   ├── psd_resizer_v2.py / full_scale.py
-│   ├── transform_to_inside.py
-│   └── transform_to_outside.py
-└── storage/                      # 持久化存储
-    ├── templates/               # 模板源文件与索引 templates.json
-    ├── expanded/                # 逆展开 b.psd（{tplId}_restored.psd）
-    ├── previews/                # 模板预览图（{tplId}_preview.png）
-    ├── references/              # 模板参考图（{tplId}_reference.png）
-    └── temp/                    # 生成过程产物（result/final/preview）
+holder-design/
+├── backend/
+│   ├── app.py                 # Flask 入口与路由
+│   ├── processor_core.py      # 核心编排（校验/入库/生成/索引）
+│   ├── png_stroke_processor.py# PNG描边处理（SciPy/PIL）
+│   ├── psd_replacer.py        # 按图层形状（alpha）进行裁切替换
+│   ├── psd_transformer.py     # 最终变换（扩展画布、翻转/移动）
+│   ├── psd_resizer.py         # PSD 尺寸调整
+│   ├── transformer_inside.py  # 逆展开（生成 restored.psd）
+│   └── ...
+├── frontend/
+│   └── src/...                # React 前端（npm start 开发）
+├── clean_storage.sh           # 一键清空 storage（开发期）
+└── storage/
+    ├── templates/            # 模板与索引 templates.json（数组）
+    ├── inside/               # {tpl}_restored.psd、{tpl}_stroke_{w}px.psd
+    ├── previews/             # 模板预览图
+    ├── references/           # 原/各 stroke 的透明参考图
+    └── results/              # 结果：downloads/、previews/、results_index.json
 ```
 
-## 🚀 启动与访问
+> 说明：`results_index.json` 为对象结构，包含 `results` 字典；系统对旧格式 `[]` 做了兼容并自动规范化。
 
-### 后端服务
+## 🚀 启动
+
+后端（默认 8012）：
 ```bash
 cd backend
-python3 app.py --debug  # http://localhost:8012
-```
-或在项目根目录用脚本（便捷重启+日志跟随）：
-```bash
-./restart_backend_with_logs.sh
+python3 app.py --debug
 ```
 
-### 前端（可选）
+前端（默认 8001）：
 ```bash
 cd frontend
 npm install
-npm start  # http://localhost:8001
+npm start
 ```
 
-### 端口
-- 后端: `8012`
-- 前端: `8001`
+便捷脚本：`./restart_services.sh` 同时启动前后端；`./clean_storage.sh` 清空 storage（开发期使用）。
 
 ## 🔧 依赖
 
-### 后端（Python）
+后端：
 ```bash
-pip install flask flask-cors psd-tools Pillow numpy
+pip install flask flask-cors psd-tools Pillow numpy scipy
 ```
+> 提示：`scipy` 可选但推荐，用于更平滑的描边算法；缺失时会降级走 PIL 路径。
 
-### 前端（Node）
+前端：
 ```bash
 cd frontend && npm install
 ```
 
-## 🔌 API 一览（实际）
+## 🔌 API（要点）
 
-- `GET /api/health`：健康检查
-- `POST /api/validate`：上传 `template`(PSD) 校验是否包含必要图层 `view, part1~4`
-- `POST /api/upload`：上传 `template` 入库，生成预览图、参考图、逆展开 b.psd，返回模板记录
-- `GET /api/templates`：获取模板列表（读取 `storage/templates/templates.json`）
-- `GET /api/templates/{id}/preview`：获取模板预览图
-- `GET /api/templates/{id}/reference`：获取模板参考图
-- `POST /api/templates/{id}/delete`：删除模板与相关产物
-- `POST /api/generate`：表单 `templateId` + `image`，生成最终结果（final.psd + 预览图）
-- `GET /api/results/{resultId}/download`：下载最终 PSD
-- `GET /api/results/{resultId}/preview`：查看最终预览图
-- `POST /api/process`：一次性处理（上传 `template` + `source_image`），直接返回结果PSD，不入库
+- 健康检查：`GET /api/health`
+- 模板管理：
+  - `POST /api/upload`：`template`(PSD)＋可选 `strokeWidths=[2,5,8]`，入库并生成 restored / 预览 / 参考图 / 多 stroke inside 与参考图
+  - `GET /api/templates`、`GET /api/templates/{id}/preview`、`GET /api/templates/{id}/reference`
+  - `GET /api/templates/{id}/stroke/{w}/reference`：获取指定宽度的透明参考图（已存在的 stroke）
+  - `POST /api/templates/{id}/delete`
+- 生成：
+  - `POST /api/generate`
+    - 表单字段：
+      - `templateId`(必填)、`image`(必填)
+      - `forceResize`(可选，bool)
+      - `componentId`(可选)
+      - `strokeWidth`(可选，number；不传表示“原始 inside”)
+    - 约束：仅允许选择模板已配置并已存在的 stroke 版本；缺失时返回错误，不自动生成新 stroke。
+    - 返回：包含 `resultId`、`usedStrokeWidth`、`previewPath` 等。
+- 结果管理：
+  - `GET /api/results` 列表（时间倒序）
+  - `GET /api/results/{id}/info` 详情（含 `usedStrokeWidth`）
+  - `GET /api/results/{id}/preview`、`GET /api/results/{id}/download`
+  - `DELETE /api/results/{id}/delete`
+  - `POST /api/results/cleanup`（`keepRecent`、`olderThanDays`、`dryRun`）
+- 部件：上传/获取/重命名/删除（见 `backend/app.py` 对应路由）。
 
-## 📦 处理流程（简述）
+## 🔁 生成流程（更新版）
 
-1) 模板上传与校验：`validate_psd` 用 `psd-tools` 检查 `view, part1~4` 是否存在。
-2) 模板入库：拷贝到 `storage/templates`，生成模板记录（含尺寸、view信息）。
-3) 预览/参考图：
-   - 预览：合并所有 `part*` 区域 alpha，50% 灰填充生成 `{tplId}_preview.png`。
-   - 参考：基于 b.psd 对 `part*` 区域白填充 + 膨胀黑描边，生成 `{tplId}_reference.png`。
-4) 逆展开 b.psd：`InsideTransformer` 在原尺寸画布内对 `part1/3` 水平翻转并左右移动、`part2/4` 垂直翻转并上下移动，输出 `{tplId}_restored.psd`。
-5) 尺寸对齐：根据图片与模板面积，选择“缩放模板到图片”或“缩放图片到模板”。
-6) 图层裁切：`PSDReplacer` 按模板 `part*` 的实际形状（alpha）从图片裁切并写回图层像素。
-7) 最终变换：`BinaryPSDTransformer` 在扩展画布（≈3.5×）上移动/翻转图层，写出 final.psd，并生成最终预览图。
+1. 模板上传：校验图层、保存、生成模板预览、生成 `restored.psd`。
+2. （可选）多 stroke：按 `strokeWidths` 生成 `{tpl}_stroke_{w}px.psd` 与对应透明参考图。
+3. 前端选择：在“裁切模板选择”区域选择“原始”或某个 stroke（仅展示已存在项）；叠加参考图仅用于视觉对比，点击“生成”时才应用。
+4. 生成时：
+   - 未选 stroke → 使用 `restored.psd`；已选 → 使用对应 `stroke` inside PSD。
+   - 进行尺寸对齐 → 按图层形状裁切替换 → 最终变换 → 生成 `final.psd` 与预览。
+5. 命名与索引：
+   - `result_id` 追加 `_stroke_{w}px`（若选择了 stroke）。
+   - 详情返回 `usedStrokeWidth`；索引记录 `used_stroke_width`。
 
-## 🧪 调用示例
+## 🖼️ 前端交互（要点）
 
-健康检查
-```bash
-curl http://localhost:8012/api/health
+- 裁切模板选择：
+  - 标题“裁切模板选择”；按钮文案“选择模板”（原“对比”功能位，控制叠加可视化）。
+  - 下拉：`原始` + `strokeConfig` 中已有的宽度；不生成新 stroke。
+  - 预览叠加：与选择联动（原始/Stroke Npx）。
+- 生成结果详情：
+  - 预览样式与生成预览一致（灰底容器 + 图片自适应）。
+  - 基本信息位于预览下方，显示“使用模板：原始 / Stroke Npx”。
+- 下载命名：文件名自动追加 `_stroke_{w}px` 后缀（若选择了 stroke）。
+
+## 🗂️ 索引结构（概要）
+
+- 模板索引（`storage/templates/templates.json`）：数组，每条记录包含 `id/name/savedFileName/restoredFileName/previewImage/referenceImage/strokeVersions/strokeReferences/strokeConfig/...`。
+- 结果索引（`storage/results/results_index.json`）：
+```json
+{
+  "version": "1.0",
+  "last_updated": "...",
+  "results": {
+    "result_..._stroke_5px": {
+      "id": "result_..._stroke_5px",
+      "template_id": "tpl_...",
+      "template_name": "...",
+      "created_at": "...",
+      "final_psd_size": 123456,
+      "used_stroke_width": 5
+    }
+  }
+}
 ```
+> 兼容：若文件为 `[]`，系统会在读取时自动规范化为上面的对象结构。
 
-上传模板并入库
-```bash
-curl -X POST \
-  -F "template=@path/to/template.psd" \
-  http://localhost:8012/api/upload
-```
+## 🧹 清理与中间文件
 
-获取模板列表
-```bash
-curl http://localhost:8012/api/templates
-```
+- 生成流程使用临时文件/目录，结束后会清理，只保留最终 `final.psd` 与对应预览图。
+- `clean_storage.sh`：清空 `storage` 下的文件（开发期使用）。
 
-基于模板生成最终结果
-```bash
-# 假设上一步拿到模板ID: tpl_xxx
-curl -X POST \
-  -F "templateId=tpl_xxx" \
-  -F "image=@path/to/image.png" \
-  http://localhost:8012/api/generate
+## 📝 常见问题
 
-# 返回JSON包含 resultId，可据此下载与预览
-curl -L http://localhost:8012/api/results/<resultId>/download -o final.psd
-curl -L http://localhost:8012/api/results/<resultId>/preview -o final_preview.png
-```
-
-一次性处理（不入库）
-```bash
-curl -X POST \
-  -F "template=@path/to/template.psd" \
-  -F "source_image=@path/to/source.png" \
-  http://localhost:8012/api/process \
-  -o result.psd
-```
-
-## 🎯 特性
-
-- ✅ Flask REST API + CORS 支持
-- ✅ 模板入库与索引管理（JSON）
-- ✅ 预览/参考图自动生成
-- ✅ 智能尺寸对齐（模板或图片二选一调整）
-- ✅ 按图层形状的精确裁切与最终变换
-- ✅ 结果预览/下载便捷
-
-## 📝 开发状态
-
-- ✅ 后端服务与核心逻辑已可用
-- ✅ API 完整可测
-- 🚧 前端界面迭代中
+- 选择了某个 stroke，但提示“所选stroke版本文件不存在”？
+  - 说明该 PSD 文件被手工清理或未生成；系统不会自动补生成，请重新上传模板或恢复文件。
+- 参考图与 stroke 参考图为什么看起来一致？
+  - 它们使用相同的渲染逻辑，仅输入 PSD 不同（原始 inside vs 对应 stroke inside）。
 
 ## 📄 许可证
 
 MIT License
 
----
-
-让 PSD 模板处理变得简单高效！🎯
+—— 让 PSD 模板管理与生成更优雅高效。
