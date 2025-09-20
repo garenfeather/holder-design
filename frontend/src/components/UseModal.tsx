@@ -49,6 +49,8 @@ export const UseModal: React.FC<UseModalProps> = ({
   const [componentPreviewSize, setComponentPreviewSize] = useState<{ width: number; height: number } | null>(null);
   const [showReferenceOverlay, setShowReferenceOverlay] = useState(false);
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
+  const [selectedStrokeWidth, setSelectedStrokeWidth] = useState<number | null>(null);
+  const [overlayOpacity, setOverlayOpacity] = useState<number>(100); // 0-100
   const [cropBoxSize, setCropBoxSize] = useState<{ width: number; height: number }>({ width: 300, height: 300 });
   const [imageDisplayInfo, setImageDisplayInfo] = useState<{ width: number; height: number; initialX: number; initialY: number } | null>(null);
   const [availableComponents, setAvailableComponents] = useState<Component[]>([]);
@@ -472,7 +474,8 @@ export const UseModal: React.FC<UseModalProps> = ({
         selectedImage,
         (progress) => setUploadProgress(progress),
         forceResize,
-        selectedComponent?.id
+        selectedComponent?.id,
+        selectedStrokeWidth ?? null
       );
       
       if (result.success && result.data) {
@@ -502,7 +505,8 @@ export const UseModal: React.FC<UseModalProps> = ({
       // 生成组合文件名：用户图片名（不含扩展名）+ 模板名 + .psd
       const userImageName = selectedImage.name.replace(/\.[^/.]+$/, ''); // 去掉原始扩展名
       const templateName = template.name;
-      const finalFileName = `${userImageName}_${templateName}.psd`;
+      const strokeSuffix = selectedStrokeWidth ? `_stroke_${selectedStrokeWidth}px` : '';
+      const finalFileName = `${userImageName}_${templateName}${strokeSuffix}.psd`;
       
       await apiService.downloadFile(generateResult.resultId, finalFileName);
     } catch (error) {
@@ -514,7 +518,7 @@ export const UseModal: React.FC<UseModalProps> = ({
   if (!isOpen || !template) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-white/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* 头部 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -956,36 +960,57 @@ export const UseModal: React.FC<UseModalProps> = ({
               {/* 裁切结果预览与尺寸 */}
               <div className="card p-4 mb-6 text-left">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-gray-900">
-                    {(() => {
-                      // 显示实际裁切生成的尺寸
-                      const size = (() => {
-                        const tplW = template.viewLayer?.width;
-                        const tplH = template.viewLayer?.height;
-                        if (forceResize && tplW && tplH) {
-                          return { width: tplW, height: tplH };
-                        }
-                        return editedSize || cutPreviewSize || originalImageSize;
-                      })();
-                      const sizeText = size ? `（${Math.round(size.width)} × ${Math.round(size.height)} px）` : '';
-                      return `裁切预览${sizeText}`;
-                    })()}
-                  </h4>
-                  <button
-                    onClick={() => setShowPreviewOverlay(!showPreviewOverlay)}
-                    className={`flex items-center space-x-1 px-2 py-1 text-xs border rounded transition-colors ${
-                      showPreviewOverlay 
-                        ? 'bg-primary-50 border-primary-300 text-primary-700' 
-                        : 'bg-white border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {showPreviewOverlay ? (
-                      <EyeOff className="w-3 h-3" />
-                    ) : (
-                      <Eye className="w-3 h-3" />
+                  <h4 className="font-medium text-gray-900">裁切模板选择</h4>
+                  <div className="flex items-center gap-2">
+                    {/* Stroke版本选择（存在配置时显示） */}
+                    {template?.strokeConfig && template.strokeConfig.length > 0 && (
+                      <select
+                        className="text-xs border-gray-300 rounded px-2 py-1 bg-white"
+                        value={selectedStrokeWidth ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedStrokeWidth(v ? Number(v) : null);
+                          setShowPreviewOverlay(true);
+                        }}
+                      >
+                        <option value="">原始</option>
+                        {[...template.strokeConfig].sort((a, b) => a - b).map(w => (
+                          <option key={w} value={w}>{w}px描边</option>
+                        ))}
+                      </select>
                     )}
-                    <span>对比</span>
-                  </button>
+
+                    {/* 透明度（仅叠加时可用） */}
+                    {showPreviewOverlay && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500">透明度</span>
+                        <input
+                          type="range"
+                          min={10}
+                          max={100}
+                          step={5}
+                          value={overlayOpacity}
+                          onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setShowPreviewOverlay(!showPreviewOverlay)}
+                      className={`flex items-center space-x-1 px-2 py-1 text-xs border rounded transition-colors ${
+                        showPreviewOverlay 
+                          ? 'bg-primary-50 border-primary-300 text-primary-700' 
+                          : 'bg-white border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {showPreviewOverlay ? (
+                        <EyeOff className="w-3 h-3" />
+                      ) : (
+                        <Eye className="w-3 h-3" />
+                      )}
+                      <span>选择模板</span>
+                    </button>
+                  </div>
                 </div>
                 <div className="w-full relative">
                   <img
@@ -1005,13 +1030,16 @@ export const UseModal: React.FC<UseModalProps> = ({
                   {showPreviewOverlay && template && (
                     <div className="absolute inset-0 rounded border border-gray-200 overflow-hidden">
                       <img
-                        src={`${API_BASE_URL}/api/templates/${template.id}/reference`}
+                        src={selectedStrokeWidth
+                          ? `${API_BASE_URL}/api/templates/${template.id}/stroke/${selectedStrokeWidth}/reference`
+                          : `${API_BASE_URL}/api/templates/${template.id}/reference`}
                         alt="Reference对比"
-                        className="w-full h-full object-cover opacity-100"
+                        className="w-full h-full object-cover"
+                        style={{ opacity: Math.max(0, Math.min(1, overlayOpacity / 100)) }}
                       />
                       
                       <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-80 text-white text-xs px-2 py-1 rounded">
-                        参考图叠加
+                        {selectedStrokeWidth ? `Stroke ${selectedStrokeWidth}px` : '原始'}
                       </div>
                     </div>
                   )}

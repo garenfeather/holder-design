@@ -1,4 +1,4 @@
-import { ApiResponse, Template, TemplateValidationResult, GenerateResult, Component, Result, ResultDetail } from '../types/index.ts';
+import { ApiResponse, Template, TemplateValidationResult, GenerateResult, Component, Result, ResultDetail, StrokeUploadData } from '../types/index.ts';
 import { appConfig } from '../config.ts';
 
 // 后端基础地址依赖环境配置
@@ -15,14 +15,20 @@ class ApiService {
     }
   }
 
-  // 上传PSD模板
+  // 上传PSD模板（支持stroke配置）
   async uploadTemplate(
     file: File,
+    strokeConfig?: StrokeUploadData,
     onProgress?: (progress: number) => void
   ): Promise<ApiResponse<Template>> {
     try {
       const formData = new FormData();
       formData.append('template', file);
+
+      // 添加stroke配置（如果提供）
+      if (strokeConfig && strokeConfig.strokeWidths.length > 0) {
+        formData.append('strokeWidths', JSON.stringify(strokeConfig.strokeWidths));
+      }
 
       const xhr = new XMLHttpRequest();
       
@@ -285,7 +291,8 @@ class ApiService {
     imageFile: File,
     onProgress?: (progress: number) => void,
     forceResize?: boolean,
-    componentId?: string
+    componentId?: string,
+    strokeWidth?: number | null,
   ): Promise<ApiResponse<GenerateResult>> {
     try {
       const formData = new FormData();
@@ -296,6 +303,9 @@ class ApiService {
       }
       if (componentId) {
         formData.append('componentId', componentId);
+      }
+      if (typeof strokeWidth === 'number' && !isNaN(strokeWidth)) {
+        formData.append('strokeWidth', String(strokeWidth));
       }
 
       const xhr = new XMLHttpRequest();
@@ -425,6 +435,7 @@ class ApiService {
           templateName: d.templateName || d.template_name,
           createdAt: new Date(d.createdAt || d.created_at),
           finalPsdSize: d.finalPsdSize || d.final_psd_size,
+          usedStrokeWidth: d.usedStrokeWidth ?? d.used_stroke_width ?? null,
           previewExists: !!d.previewExists,
           psdExists: !!d.psdExists,
           previewUrl: d.previewUrl ?? null,

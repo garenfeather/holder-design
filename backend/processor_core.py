@@ -24,6 +24,8 @@ from psd_cropper import PSDCropper
 from psd_resizer import PSDResizerV2
 from psd_transformer import BinaryPSDTransformer
 from psd_replacer import PSDReplacer
+from psd_scaler import PSDScaler
+from png_stroke_processor import PNGStrokeProcessor
 from psd_tools import PSDImage
 from utils.strings import sanitize_name
 from config import get_storage_root
@@ -189,6 +191,20 @@ class PSDProcessorCore:
                 json.dump(templates, f, ensure_ascii=False, indent=2, default=str)
         except Exception as e:
             print(f"Failed to save template index: {e}")
+
+    def _update_template_record(self, template_id, updater):
+        """原子更新单个模板记录（就地修改并保存索引）"""
+        templates = self._load_templates_index()
+        changed = False
+        for i, t in enumerate(templates):
+            if t.get('id') == template_id:
+                new_t = updater(dict(t))
+                templates[i] = new_t
+                changed = True
+                break
+        if changed:
+            self._save_templates_index(templates)
+        return changed
     
     def _get_unique_filename(self, original_filename):
         """获取唯一文件名，如果同名则添加-1, -2等后缀"""
@@ -324,11 +340,170 @@ class PSDProcessorCore:
 
             print(f"Restored PSD generation successful: {restored_filename}", flush=True, file=sys.stderr)
             return True, restored_filename
-            
+
         except Exception as e:
             print(f"Restored PSD generation failed: {e}")
             import traceback
             print(traceback.format_exc())
+            return False, str(e)
+
+    def _generate_multi_stroke_versions(self, template_id, stroke_widths):
+        """生成多个stroke版本的inside PSD
+
+        Args:
+            template_id (str): 模板ID
+            stroke_widths (list): stroke宽度数组，如 [2, 5, 8]
+
+        Returns:
+            tuple: (success, result)
+                success (bool): 是否成功
+                result (dict): 包含各stroke版本路径的映射
+        """
+        try:
+            print(f"[START] 生成多stroke版本，模板ID: {template_id}", flush=True, file=sys.stderr)
+            print(f"[CONFIG] stroke宽度数组: {stroke_widths}", flush=True, file=sys.stderr)
+
+            # 验证输入参数
+            if not stroke_widths or not isinstance(stroke_widths, list):
+                return False, "stroke_widths参数无效"
+
+            # 验证宽度范围和去重
+            valid_widths = []
+            for width in stroke_widths:
+                if isinstance(width, (int, float)) and 1 <= width <= 10:
+                    if width not in valid_widths:
+                        valid_widths.append(int(width))
+
+            if not valid_widths:
+                return False, "无有效的stroke宽度值"
+
+            # 按大小排序
+            valid_widths.sort()
+            print(f"[VALIDATED] 有效stroke宽度: {valid_widths}", flush=True, file=sys.stderr)
+
+            # 检查原始inside PSD是否存在
+            restored_filename = f"{template_id}_restored.psd"
+            original_psd_path = self.inside_dir / restored_filename
+
+            if not original_psd_path.exists():
+                return False, f"原始inside PSD不存在: {restored_filename}"
+
+            print(f"[SOURCE] 原始inside PSD: {original_psd_path}", flush=True, file=sys.stderr)
+
+            # 结果收集
+            stroke_versions = {}
+
+            # 对每个stroke宽度生成版本
+            for width in valid_widths:
+                print(f"\\n[STROKE] 开始生成 {width}px stroke版本...", flush=True, file=sys.stderr)
+
+                success, stroke_path = self._generate_single_stroke_version(
+                    template_id, width, original_psd_path
+                )
+
+                if success:
+                    stroke_versions[width] = stroke_path
+                    print(f"[SUCCESS] {width}px stroke版本生成完成: {stroke_path}", flush=True, file=sys.stderr)
+                else:
+                    print(f"[ERROR] {width}px stroke版本生成失败: {stroke_path}", flush=True, file=sys.stderr)
+
+            if stroke_versions:
+                print(f"\\n[COMPLETE] 多stroke版本生成完成，成功: {len(stroke_versions)}/{len(valid_widths)}", flush=True, file=sys.stderr)
+                return True, {
+                    'original_path': restored_filename,
+                    'stroke_versions': stroke_versions,
+                    'generated_count': len(stroke_versions),
+                    'total_requested': len(valid_widths)
+                }
+            else:
+                return False, "所有stroke版本生成失败"
+
+        except Exception as e:
+            print(f"[ERROR] 多stroke版本生成失败: {e}", flush=True, file=sys.stderr)
+            import traceback
+            print(traceback.format_exc(), flush=True, file=sys.stderr)
+            return False, str(e)
+
+    def _generate_single_stroke_version(self, template_id, stroke_width, source_psd_path):
+        """生成单个stroke版本的inside PSD
+
+        Args:
+            template_id (str): 模板ID
+            stroke_width (int): stroke宽度
+            source_psd_path (Path): 原始inside PSD路径
+
+        Returns:
+            tuple: (success, result_path_or_error)
+        """
+        try:
+            stroke_filename = f"{template_id}_stroke_{stroke_width}px.psd"
+            stroke_psd_path = self.inside_dir / stroke_filename
+
+            # 使用临时目录确保自动清理
+            with tempfile.TemporaryDirectory(prefix=f"stroke_{stroke_width}px_") as temp_base:
+                layers_dir = Path(temp_base) / "extracted"
+                stroked_dir = Path(temp_base) / "stroked"
+
+                # 步骤1: 提取PNG图层
+                print(f"  [STEP1] 提取PNG图层...", flush=True, file=sys.stderr)
+                scaler = PSDScaler()
+                extract_success = scaler.extract_layers_from_psd(str(source_psd_path), str(layers_dir))
+
+                if not extract_success:
+                    return False, f"PNG图层提取失败"
+
+                # 步骤2: 对part图层进行描边处理
+                print(f"  [STEP2] 描边part图层 (宽度: {stroke_width}px)...", flush=True, file=sys.stderr)
+                stroked_dir.mkdir(exist_ok=True)
+
+                # 创建描边处理器
+                processor = PNGStrokeProcessor(
+                    stroke_width=stroke_width,
+                    stroke_color=(255, 255, 255, 255),
+                    smooth_factor=1.0
+                )
+
+                # 处理每个图层
+                import glob
+                png_files = glob.glob(str(layers_dir / "*.png"))
+                part_count = 0
+
+                for png_file in png_files:
+                    png_path = Path(png_file)
+                    layer_name = png_path.stem
+                    output_path = stroked_dir / png_path.name
+
+                    if layer_name.startswith('part'):
+                        # part图层进行描边
+                        try:
+                            result_image = processor.process_png(png_file)
+                            result_image.save(str(output_path), 'PNG', optimize=True)
+                            part_count += 1
+                            print(f"    ✓ 描边完成: {layer_name}", flush=True, file=sys.stderr)
+                        except Exception as e:
+                            print(f"    ❌ 描边失败 {layer_name}: {e}", flush=True, file=sys.stderr)
+                            return False, f"图层描边失败: {layer_name}"
+                    else:
+                        # view图层等直接复制
+                        shutil.copy2(png_file, output_path)
+                        print(f"    ✓ 复制图层: {layer_name}", flush=True, file=sys.stderr)
+
+                print(f"  [STEP2] 描边处理完成，part图层数: {part_count}", flush=True, file=sys.stderr)
+
+                # 步骤3: 重组为PSD
+                print(f"  [STEP3] 重组PSD...", flush=True, file=sys.stderr)
+                create_success = scaler.create_psd_from_dir(str(stroked_dir), str(stroke_psd_path))
+
+                if not create_success:
+                    return False, f"PSD重组失败"
+
+                print(f"  [SUCCESS] stroke版本生成完成: {stroke_filename}", flush=True, file=sys.stderr)
+                return True, stroke_filename
+
+        except Exception as e:
+            print(f"  [ERROR] 单个stroke版本生成失败: {e}", flush=True, file=sys.stderr)
+            import traceback
+            print(traceback.format_exc(), flush=True, file=sys.stderr)
             return False, str(e)
 
     def _trim_transparent_edges(self, psd_path):
@@ -479,77 +654,122 @@ class PSDProcessorCore:
             print(f"  创建PSD结构失败: {e}", flush=True, file=sys.stderr)
             raise
 
-    def _generate_reference_image(self, inside_psd_path, template_id):
-        """生成编辑参考图：基于变换结果PSD，part图层填充白色加黑边，每个图层50%透明度叠加"""
+    def _render_reference_from_psd(self, psd_path, out_filename):
+        """通用参考图渲染：基于给定PSD，将part图层白填充+黑边，以50%透明叠加输出PNG。
+
+        与“stroke参考图”保持一致逻辑，唯一差异在于传入的PSD路径（原始inside或stroke版inside）。
+        """
         try:
             from PIL import ImageFilter
-            
-            # 直接使用变换结果PSD
-            psd = PSDImage.open(inside_psd_path)
+            psd = PSDImage.open(psd_path)
             canvas_width, canvas_height = psd.width, psd.height
-            
-            # 创建透明背景的参考图
+
+            # 目标画布
             reference_img = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-            
-            # 处理part1-4图层
+
             for layer in psd:
                 layer_name = sanitize_name(layer.name).lower()
                 if layer_name.startswith('part') and layer_name[4:].isdigit():
                     try:
-                        # 获取图层选区
                         layer_img = layer.topil().convert('RGBA')
-                        
-                        # 创建当前图层画布
+
+                        # 放置到正确位置
                         layer_canvas = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-                        
-                        # 将图层粘贴到画布位置
                         paste_x = max(0, layer.left)
                         paste_y = max(0, layer.top)
-                        
                         if paste_x < canvas_width and paste_y < canvas_height:
                             layer_canvas.paste(layer_img, (paste_x, paste_y), layer_img)
-                        
-                        # 获取画布上的alpha通道
+
+                        # 基于alpha生成黑边 + 白填充
                         _, _, _, canvas_alpha = layer_canvas.split()
-                        
-                        # 创建黑边：扩展alpha mask
-                        dilated_alpha = canvas_alpha.filter(ImageFilter.MaxFilter(11))  # 扩展5px
-                        
-                        # 创建图层效果：黑边+白色填充，50%透明度
+                        dilated_alpha = canvas_alpha.filter(ImageFilter.MaxFilter(11))
+
                         layer_effect = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-                        
-                        # 黑边部分 - 50%透明度
+
+                        # 黑边（50%）
+                        la = layer_effect.load()
+                        da = dilated_alpha.load()
+                        ca = canvas_alpha.load()
                         for y in range(canvas_height):
                             for x in range(canvas_width):
-                                if dilated_alpha.getpixel((x, y)) > 0:
-                                    layer_effect.putpixel((x, y), (0, 0, 0, 128))  # 黑色50%透明
-                        
-                        # 白色填充部分 - 50%透明度（覆盖黑边）
+                                if da[x, y] > 0:
+                                    la[x, y] = (0, 0, 0, 128)
+                        # 白填充（50%），覆盖黑边
                         for y in range(canvas_height):
                             for x in range(canvas_width):
-                                if canvas_alpha.getpixel((x, y)) > 0:
-                                    layer_effect.putpixel((x, y), (255, 255, 255, 128))  # 白色50%透明
-                        
-                        # 使用alpha_composite进行真正的图层叠加
+                                if ca[x, y] > 0:
+                                    la[x, y] = (255, 255, 255, 128)
+
                         reference_img = Image.alpha_composite(reference_img, layer_effect)
-                        
                     except Exception as layer_error:
                         print(f"Error processing layer: {layer_error}")
                         continue
-            
-            # 保存参考图
-            reference_filename = f"{template_id}_reference.png"
-            reference_path = self.references_dir / reference_filename
-            reference_img.save(reference_path, 'PNG')
-            
-            print(f"生成编辑参考图成功: {reference_filename} ({canvas_width}x{canvas_height})")
-            return True, reference_filename
-            
+
+            out_path = self.references_dir / out_filename
+            reference_img.save(out_path, 'PNG')
+            return True, out_filename
         except Exception as e:
-            print(f"生成编辑参考图失败: {e}")
             return False, str(e)
+
+    def _generate_reference_image(self, inside_psd_path, template_id):
+        """生成原始参考图：基于 restored.psd 渲染通用参考图。"""
+        ok, res = self._render_reference_from_psd(inside_psd_path, f"{template_id}_reference.png")
+        if ok:
+            print(f"生成编辑参考图成功: {res}")
+        else:
+            print(f"生成编辑参考图失败: {res}")
+        return ok, res
+
+    def _generate_stroke_reference_image(self, template_id, stroke_width):
+        """生成 stroke 参考图：逻辑与原参考图一致，但输入为 stroke 版 inside PSD。"""
+        try:
+            stroke_psd = self.inside_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
+            if not stroke_psd.exists():
+                return False, f"找不到stroke PSD: {stroke_psd.name}"
+            return self._render_reference_from_psd(stroke_psd, f"{template_id}_stroke_{int(stroke_width)}px_reference.png")
+        except Exception as e:
+            return False, f"生成stroke参考图失败: {e}"
+
+    def get_or_create_stroke_reference(self, template_id, stroke_width):
+        """获取或按需生成 stroke 参考预览，并更新索引映射。"""
+        # 先查现有索引
+        templates = self._load_templates_index()
+        record = next((t for t in templates if t.get('id') == template_id), None)
+        mapping = {}
+        if record:
+            mapping = record.get('strokeReferences') or {}
+            filename = mapping.get(str(stroke_width)) or mapping.get(int(stroke_width))
+            if filename:
+                candidate = self.references_dir / filename
+                if candidate.exists():
+                    return True, filename
+        # 没有则生成：若缺失stroke版PSD，先按需生成
+        stroke_psd = self.inside_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
+        if not stroke_psd.exists():
+            source_psd = self.get_restored_psd_path(template_id)
+            if not source_psd or not source_psd.exists():
+                return False, "restored PSD 不存在，无法生成stroke版本"
+            ok_s, res_s = self._generate_single_stroke_version(template_id, int(stroke_width), source_psd)
+            if not ok_s:
+                return False, res_s
+
+        ok, res = self._generate_stroke_reference_image(template_id, int(stroke_width))
+        if not ok:
+            return False, res
+
+        # 更新索引
+        def updater(t):
+            refs = t.get('strokeReferences') or {}
+            refs[str(int(stroke_width))] = res
+            t['strokeReferences'] = refs
+            # 兼容：也补一份数值key，方便老代码读取
+            refs_numkey = {int(k): v for k, v in refs.items() if str(k).isdigit()}
+            t['strokeReferences'] = {str(k): v for k, v in refs_numkey.items()}
+            return t
+        self._update_template_record(template_id, updater)
+        return True, res
     
-    def save_template(self, psd_path, original_filename):
+    def save_template(self, psd_path, original_filename, stroke_widths=None):
         """保存PSD模板到存储目录"""
         try:
             # 验证文件
@@ -578,7 +798,31 @@ class PSDProcessorCore:
             # 对原始PSD进行逆展开变换，生成b.psd
             restore_success, restore_result = self._generate_restored_psd(saved_path, template_id)
             restored_filename = restore_result if restore_success else None
-            
+
+            # 生成多stroke版本（如果配置了stroke宽度）
+            stroke_versions = {}
+            if restore_success and stroke_widths:
+                stroke_success, stroke_result = self._generate_multi_stroke_versions(template_id, stroke_widths)
+                if stroke_success:
+                    stroke_versions = stroke_result.get('stroke_versions', {})
+                    print(f"[STROKE] 成功生成 {len(stroke_versions)} 个stroke版本", flush=True, file=sys.stderr)
+                else:
+                    print(f"[STROKE] stroke版本生成失败: {stroke_result}", flush=True, file=sys.stderr)
+
+            # 基于 restored.psd 生成 stroke 透明参考图（第二阶段）
+            stroke_references = {}
+            if restore_success and stroke_versions:
+                for w in sorted(stroke_versions.keys(), key=lambda x: int(x)):
+                    try:
+                        ok, ref_name = self._generate_stroke_reference_image(template_id, int(w))
+                        if ok:
+                            stroke_references[int(w)] = ref_name
+                            print(f"[STROKE] 参考图生成完成: {w}px -> {ref_name}", flush=True, file=sys.stderr)
+                        else:
+                            print(f"[STROKE] 参考图生成失败: {w}px -> {ref_name}", flush=True, file=sys.stderr)
+                    except Exception as e:
+                        print(f"[STROKE] 参考图生成异常: {w}px -> {e}", flush=True, file=sys.stderr)
+
             # 基于b.psd生成编辑参考图
             if restore_success:
                 restored_path = self.inside_dir / restored_filename
@@ -611,6 +855,9 @@ class PSDProcessorCore:
                 } if psd_info else None,
                 'layers': psd_info['layers'] if psd_info else [],
                 'viewLayer': psd_info['viewLayer'] if psd_info and psd_info.get('viewLayer') else None,
+                'strokeVersions': stroke_versions,  # 添加stroke版本映射
+                'strokeConfig': list(stroke_versions.keys()) if stroke_versions else [],  # 记录配置的stroke宽度
+                'strokeReferences': {str(k): v for k, v in stroke_references.items()} if stroke_references else {},
                 'components': []  # 初始化为空的部件列表
             }
             
@@ -643,7 +890,7 @@ class PSDProcessorCore:
                 return template
         return None
     
-    def generate_final_psd(self, template_id, image_path, force_resize=False, component_id=None):
+    def generate_final_psd(self, template_id, image_path, force_resize=False, component_id=None, stroke_width=None):
         """生成最终PSD文件的完整流程"""
         try:
             # 获取模板信息
@@ -654,17 +901,40 @@ class PSDProcessorCore:
             if not template.get('restoredFileName'):
                 return False, "模板缺少变换结果文件"
             
-            # 获取b.psd路径
-            b_psd_path = self.inside_dir / template['restoredFileName']
-            if not b_psd_path.exists():
-                return False, "变换结果文件不存在"
+            # 选择用于裁切的 inside PSD：原始或指定的 stroke 版本
+            selected_psd_path = None
+            used_stroke_width = None
+            if stroke_width is not None and str(stroke_width) != "":
+                try:
+                    sw = int(stroke_width)
+                except Exception:
+                    return False, "无效的stroke宽度"
+
+                # 仅允许使用已存在的 stroke 版本
+                versions = template.get('strokeVersions') or {}
+                # 兼容键类型（int/str）
+                candidate_name = versions.get(sw) or versions.get(str(sw))
+                if not candidate_name:
+                    return False, "未配置该stroke版本"
+                p = self.inside_dir / candidate_name
+                if not p.exists():
+                    return False, "所选stroke版本文件不存在"
+                selected_psd_path = p
+                used_stroke_width = sw
+            else:
+                # 默认使用 restored.psd
+                selected_psd_path = self.inside_dir / template['restoredFileName']
+                if not selected_psd_path.exists():
+                    return False, "变换结果文件不存在"
             
             # 生成唯一ID
             result_id = f"result_{int(datetime.now().timestamp() * 1000)}"
+            if used_stroke_width is not None:
+                result_id = f"{result_id}_stroke_{used_stroke_width}px"
             
             # 步骤0: 图片对齐预处理
             aligned_success, aligned_image_path, aligned_template_path = self._align_image_to_template(
-                image_path, str(b_psd_path), force_resize, result_id
+                image_path, str(selected_psd_path), force_resize, result_id
             )
             
             if not aligned_success:
@@ -710,7 +980,7 @@ class PSDProcessorCore:
             # 步骤5: 如果预览图生成成功，添加到索引
             if preview_success:
                 template_name = template.get('name', f'Template_{template_id}')
-                index_success = self._add_to_results_index(result_id, template_id, template_name)
+                index_success = self._add_to_results_index(result_id, template_id, template_name, used_stroke_width=used_stroke_width)
                 if index_success:
                     print(f"索引记录已添加: {result_id}")
                 else:
@@ -723,7 +993,8 @@ class PSDProcessorCore:
                 'finalPsdPath': final_path,
                 'previewPath': preview_path if preview_success else None,
                 'generatedAt': datetime.now().isoformat(),
-                'template': template
+                'template': template,
+                'usedStrokeWidth': used_stroke_width
             }
             
             print(f"生成流程完成: {result_id}")
@@ -1589,11 +1860,31 @@ class PSDProcessorCore:
                 if reference_file.exists():
                     reference_file.unlink()
             
-            # 删除展开PSD
-            if template_to_delete.get('insideFileName'):
-                inside_file = self.inside_dir / template_to_delete['insideFileName']
-                if inside_file.exists():
-                    inside_file.unlink()
+            # 删除展开PSD（restoredFileName）
+            if template_to_delete.get('restoredFileName'):
+                restored_file = self.inside_dir / template_to_delete['restoredFileName']
+                if restored_file.exists():
+                    restored_file.unlink()
+
+            # 删除 stroke 版本 PSD
+            stroke_versions = template_to_delete.get('strokeVersions') or {}
+            for k, fname in list(stroke_versions.items()):
+                try:
+                    fpath = self.inside_dir / fname
+                    if fpath.exists():
+                        fpath.unlink()
+                except Exception as e:
+                    print(f"删除stroke版本失败 {k}: {e}", file=sys.stderr)
+
+            # 删除 stroke 参考图 PNG
+            stroke_refs = template_to_delete.get('strokeReferences') or {}
+            for k, fname in list(stroke_refs.items()):
+                try:
+                    fpath = self.references_dir / fname
+                    if fpath.exists():
+                        fpath.unlink()
+                except Exception as e:
+                    print(f"删除stroke参考图失败 {k}: {e}", file=sys.stderr)
             
             # 更新索引
             self._save_templates_index(templates)
@@ -1963,7 +2254,58 @@ class PSDProcessorCore:
         try:
             if self.results_index_file.exists():
                 with open(self.results_index_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    raw = json.load(f)
+
+                # 兼容历史格式：若为列表或results为列表，则规范化为字典映射
+                def _normalize(items_list):
+                    results_map = {}
+                    if isinstance(items_list, list):
+                        for item in items_list:
+                            if not isinstance(item, dict):
+                                continue
+                            rid = (
+                                item.get('id') or
+                                item.get('resultId') or
+                                item.get('result_id')
+                            )
+                            if not rid:
+                                continue
+                            results_map[rid] = {
+                                "id": rid,
+                                "template_id": item.get('template_id') or item.get('templateId'),
+                                "template_name": item.get('template_name') or item.get('templateName') or '',
+                                "created_at": item.get('created_at') or item.get('createdAt') or datetime.now().isoformat(),
+                                "final_psd_size": item.get('final_psd_size') or item.get('finalPsdSize') or 0,
+                            }
+                    return {
+                        "version": "1.0",
+                        "last_updated": datetime.now().isoformat(),
+                        "results": results_map
+                    }
+
+                # 情况1：整个文件就是一个列表（旧格式）
+                if isinstance(raw, list):
+                    return _normalize(raw)
+
+                # 情况2：是字典，但results键不存在或为列表
+                if isinstance(raw, dict):
+                    if isinstance(raw.get('results'), list):
+                        return _normalize(raw.get('results') or [])
+                    # 确保必要字段存在
+                    if 'results' not in raw or not isinstance(raw.get('results'), dict):
+                        raw['results'] = {}
+                    if 'version' not in raw:
+                        raw['version'] = '1.0'
+                    if 'last_updated' not in raw:
+                        raw['last_updated'] = datetime.now().isoformat()
+                    return raw
+
+                # 兜底：返回空结构
+                return {
+                    "version": "1.0",
+                    "last_updated": datetime.now().isoformat(),
+                    "results": {}
+                }
             else:
                 return {
                     "version": "1.0",
@@ -1989,7 +2331,7 @@ class PSDProcessorCore:
             print(f"保存索引文件失败: {e}", file=sys.stderr)
             return False
 
-    def _add_to_results_index(self, result_id, template_id, template_name):
+    def _add_to_results_index(self, result_id, template_id, template_name, used_stroke_width=None):
         """新增结果到索引"""
         try:
             index_data = self._load_results_index()
@@ -1998,13 +2340,17 @@ class PSDProcessorCore:
             psd_path = self.result_downloads_dir / f"{result_id}_final.psd"
             final_psd_size = psd_path.stat().st_size if psd_path.exists() else 0
 
-            index_data["results"][result_id] = {
+            entry = {
                 "id": result_id,
                 "template_id": template_id,
                 "template_name": template_name,
                 "created_at": datetime.now().isoformat(),
                 "final_psd_size": final_psd_size
             }
+            if used_stroke_width is not None:
+                entry["used_stroke_width"] = int(used_stroke_width)
+
+            index_data["results"][result_id] = entry
 
             return self._save_results_index(index_data)
         except Exception as e:

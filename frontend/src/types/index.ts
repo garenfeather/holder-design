@@ -31,6 +31,10 @@ export interface Template {
   status: 'uploading' | 'processing' | 'ready' | 'error';
   error?: string;
   components?: Component[];
+  // Stroke 相关字段
+  strokeConfig?: number[];  // 配置的stroke宽度数组 [2, 5, 8]
+  strokeVersions?: Record<number, string>;  // stroke版本映射 {2: "filename1.psd", 5: "filename2.psd"}
+  strokeCount?: number;  // stroke版本数量
 }
 
 export interface UploadProgress {
@@ -45,6 +49,23 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
+}
+
+// Stroke 配置相关类型
+export interface StrokeConfig {
+  width: number;  // stroke宽度 (1-10)
+  color?: string;  // stroke颜色，默认白色
+  enabled?: boolean;  // 是否启用该配置
+}
+
+export interface StrokeUploadData {
+  strokeWidths: number[];  // 要生成的stroke宽度数组
+}
+
+export interface StrokeVersion {
+  width: number;  // stroke宽度
+  filename: string;  // 生成的文件名
+  previewPath?: string;  // 预览图路径（用于编辑对比）
 }
 
 // 生成结果（基础信息，用于列表）
@@ -62,6 +83,7 @@ export interface ResultDetail {
   templateName: string;
   createdAt: Date;
   finalPsdSize?: number;
+  usedStrokeWidth: number | null;
   previewExists: boolean;
   psdExists: boolean;
   previewUrl?: string | null;
@@ -91,4 +113,5 @@ export interface GenerateResult {
   previewPath?: string;
   generatedAt: string;
   template: Template;
+  usedStrokeWidth?: number | null;
 }

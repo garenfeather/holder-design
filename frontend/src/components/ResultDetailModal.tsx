@@ -77,7 +77,7 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
     : `${API_BASE_URL}/api/results/${result.id}/preview`;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-elegant-xl max-w-4xl w-full max-h-[90vh] mx-4 flex flex-col">
         {/* 标题栏 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -102,28 +102,28 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
           {loading ? (
             <div className="h-64 bg-gray-100 rounded-lg animate-pulse" />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 预览 */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-2">预览图</h3>
-                <div className="border border-gray-200 rounded-lg p-3 bg-white flex items-center justify-center min-h-[260px]">
-                  {info?.previewExists ? (
-                    <img src={previewSrc} alt="预览图" className="w-full h-auto object-contain rounded" />
-                  ) : (
-                    <div className="text-gray-400 text-sm flex flex-col items-center">
-                      <ImageIcon className="w-10 h-10 mb-2" />
-                      无预览图
-                    </div>
-                  )}
-                </div>
+            <>
+              {/* 预览：复用生成结果预览样式（灰底 + 自适应宽高） */}
+              <div className="w-full rounded p-2 md:p-3" style={{ backgroundColor: 'rgb(128,128,128)' }}>
+                {info?.previewExists ? (
+                  <img src={previewSrc} alt="预览图" className="w-full h-auto" />
+                ) : (
+                  <div className="text-gray-400 text-sm flex flex-col items-center py-16 bg-white rounded">
+                    <ImageIcon className="w-10 h-10 mb-2" />
+                    无预览图
+                  </div>
+                )}
               </div>
 
-              {/* 详情与操作 */}
+              {/* 基本信息：放到预览图下方 */}
               <div>
                 <h3 className="text-sm font-medium text-gray-900 mb-2">基本信息</h3>
                 <div className="border border-gray-200 rounded-lg divide-y">
                   <div className="p-3 text-sm text-gray-700">模板名称：{result.templateName}</div>
                   <div className="p-3 text-sm text-gray-700">创建时间：{createdAtText}</div>
+                  {info?.usedStrokeWidth !== undefined && (
+                    <div className="p-3 text-sm text-gray-700">使用模板：{info?.usedStrokeWidth ? `Stroke ${info.usedStrokeWidth}px` : '原始'}</div>
+                  )}
                   <div className="p-3 text-sm text-gray-700 flex items-center">
                     <FileIcon className="w-4 h-4 mr-2 text-gray-500" />
                     PSD文件：{info?.psdExists ? (
@@ -156,7 +156,7 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
                   </button>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

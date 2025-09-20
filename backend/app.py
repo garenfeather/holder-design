@@ -111,21 +111,61 @@ def upload_template():
         
         original_filename = template_file.filename
         print(f"接收到模板上传请求: {original_filename}")
-        
+
+        # 获取stroke配置数组（可选参数）
+        stroke_widths = None
+        if 'strokeWidths' in request.form:
+            try:
+                import json
+                stroke_widths_str = request.form['strokeWidths']
+                stroke_widths = json.loads(stroke_widths_str)
+
+                # 验证stroke_widths格式
+                if stroke_widths and isinstance(stroke_widths, list):
+                    # 过滤和验证stroke宽度值
+                    valid_widths = []
+                    for width in stroke_widths:
+                        if isinstance(width, (int, float)) and 1 <= width <= 10:
+                            valid_widths.append(int(width))
+
+                    # 去重并排序
+                    stroke_widths = sorted(list(set(valid_widths))) if valid_widths else None
+                    print(f"接收到stroke配置: {stroke_widths}")
+                else:
+                    stroke_widths = None
+
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"stroke配置解析失败: {e}")
+                stroke_widths = None
+
         # 保存临时文件
         with tempfile.NamedTemporaryFile(suffix='.psd', delete=False) as temp_file:
             template_file.save(temp_file.name)
             temp_path = temp_file.name
-        
+
         try:
-            # 保存模板
-            success, result = processor_core.save_template(temp_path, original_filename)
+            # 保存模板（包含stroke版本生成）
+            success, result = processor_core.save_template(temp_path, original_filename, stroke_widths)
             
             if success:
                 print(f"模板保存成功: {result['id']}")
+
+                # 添加stroke相关信息到响应
+                stroke_info = {}
+                if stroke_widths:
+                    stroke_info = {
+                        'strokeConfig': result.get('strokeConfig', []),
+                        'strokeVersions': result.get('strokeVersions', {}),
+                        'strokeCount': len(result.get('strokeVersions', {}))
+                    }
+                    print(f"stroke版本生成完成: {len(result.get('strokeVersions', {}))} 个")
+
                 return jsonify({
                     'success': True,
-                    'data': result,
+                    'data': {
+                        **result,
+                        **stroke_info
+                    },
                     'message': '模板上传并保存成功'
                 })
             else:
@@ -239,6 +279,36 @@ def get_reference_image(template_id):
         print(f"获取参考图时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
 
+@app.route('/api/templates/<template_id>/stroke/<int:width>/reference', methods=['GET'])
+def get_stroke_reference_image(template_id, width):
+    """获取指定stroke宽度的透明参考叠加图"""
+    try:
+        # 基本检查：模板存在
+        template = processor_core.get_template_by_id(template_id)
+        if not template:
+            return json_error('模板不存在', 404)
+
+        # 若模板未配置stroke，尝试宽度在已有版本中；否则返回404
+        configured = set([int(w) for w in (template.get('strokeConfig') or [])])
+        existing_versions = set([int(k) for k in (template.get('strokeVersions') or {}).keys()])
+        allowed = configured or existing_versions
+        if allowed and int(width) not in allowed:
+            return json_error('未配置该stroke版本', 404)
+
+        # 获取或生成参考图
+        ok, filename_or_error = processor_core.get_or_create_stroke_reference(template_id, int(width))
+        if not ok:
+            return json_error(filename_or_error or '生成参考图失败', 500)
+
+        path = processor_core.references_dir / filename_or_error
+        if not path.exists():
+            return json_error('参考图文件不存在', 404)
+
+        return send_file(path, mimetype='image/png')
+    except Exception as e:
+        print(f"获取stroke参考图时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
 @app.route('/api/generate', methods=['POST'])
 def generate_final_psd():
     """生成最终PSD文件"""
@@ -253,6 +323,7 @@ def generate_final_psd():
         template_id = request.form['templateId']
         force_resize = request.form.get('forceResize', 'false').lower() == 'true'
         selected_component_id = request.form.get('componentId')  # 可选的部件ID
+        stroke_width_raw = request.form.get('strokeWidth')  # 可选的stroke宽度
         
         if image_file.filename == '':
             return json_error('未选择图片', 400)
@@ -262,6 +333,7 @@ def generate_final_psd():
         print(f"  图片文件: {image_file.filename}")
         print(f"  强制调整尺寸: {force_resize}")
         print(f"  选择的部件ID: {selected_component_id}")
+        print(f"  选择的stroke宽度: {stroke_width_raw}")
         
         # 检查模板是否存在
         template = processor_core.get_template_by_id(template_id)
@@ -278,7 +350,13 @@ def generate_final_psd():
         
         try:
             # 调用生成流程
-            success, result = processor_core.generate_final_psd(template_id, temp_image_path, force_resize, selected_component_id)
+            success, result = processor_core.generate_final_psd(
+                template_id,
+                temp_image_path,
+                force_resize,
+                selected_component_id,
+                int(stroke_width_raw) if stroke_width_raw not in (None, "") else None
+            )
             
             if success:
                 print(f"生成成功: {result}")
@@ -390,6 +468,7 @@ def get_result_info(result_id):
             'templateName': result_info['template_name'],
             'createdAt': result_info['created_at'],
             'finalPsdSize': result_info['final_psd_size'],
+            'usedStrokeWidth': result_info.get('used_stroke_width'),
             'previewExists': preview_path.exists(),
             'psdExists': psd_path.exists(),
             'previewUrl': f"/api/results/{result_id}/preview" if preview_path.exists() else None,
@@ -716,6 +795,7 @@ def index():
             <li><code>GET /api/templates</code> - 获取模板列表</li>
             <li><code>GET /api/templates/{id}/preview</code> - 获取模板预览图</li>
             <li><code>GET /api/templates/{id}/reference</code> - 获取模板编辑参考图</li>
+            <li><code>GET /api/templates/{id}/stroke/{width}/reference</code> - 获取指定stroke宽度的透明参考叠加图</li>
             <li><code>POST /api/templates/{id}/delete</code> - 删除模板</li>
             <li><code>POST /api/process</code> - 处理PSD文件</li>
         </ul>
@@ -773,6 +853,7 @@ def main():
     print(f"   GET /api/templates - Get template list")
     print(f"   GET /api/templates/{{id}}/preview - Get template preview image")
     print(f"   GET /api/templates/{{id}}/reference - Get template reference image")
+    print(f"   GET /api/templates/{{id}}/stroke/{{width}}/reference - Get stroke overlay reference image")
     print(f"   POST /api/templates/{{id}}/delete - Delete template")
     print(f"   POST /api/process - Process PSD file")
     print("=" * 60)
