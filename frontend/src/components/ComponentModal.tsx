@@ -128,7 +128,7 @@ export const ComponentModal: React.FC<ComponentModalProps> = ({
   if (!isOpen || !template) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-elegant-xl max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col">
         {/* 标题栏 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">

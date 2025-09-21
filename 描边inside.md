@@ -213,7 +213,7 @@
 4. **集成方式**：
    - 不对`scripts/png_edge_stroke.py`进行任何修改、移动或引用
    - 以backend模块形式集成，遵循项目架构规范
-   - 通过`from backend.png_stroke_processor import PNGStrokeProcessor`进行引用
+   - 在backend目录内通过`from png_stroke_processor import PNGStrokeProcessor`进行引用（同目录导入）
 
 #### 1.4 测试验证
 - [ ] 单元测试：`PNGStrokeProcessor`类的核心功能

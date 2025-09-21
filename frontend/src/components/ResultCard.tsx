@@ -19,6 +19,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, className = '', 
 
   return (
     <div className={`bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 ${className}`}>
+      
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-base font-semibold text-gray-900">

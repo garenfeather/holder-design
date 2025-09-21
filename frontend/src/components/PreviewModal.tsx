@@ -20,7 +20,7 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
   const referenceImageUrl = `${API_BASE_URL}/api/templates/${template.id}/reference`;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-elegant-xl max-w-4xl max-h-[90vh] w-full mx-4 flex flex-col">
         {/* 标题栏 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -44,6 +44,13 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
         <div className="flex-1 p-6 overflow-auto">
           <div className="flex justify-center">
             <div className="w-full space-y-6">
+              {/* Stroke 提示栏 */}
+              {template.strokeConfig && template.strokeConfig.length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
+                  支持的描边版本：{[...template.strokeConfig].sort((a, b) => a - b).join('px, ')}px（共 {template.strokeConfig.length} 个）
+                </div>
+              )}
+
               {/* 模板预览 */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-3">模板预览</h3>
@@ -133,6 +140,11 @@ export const PreviewModal: React.FC<PreviewModalProps> = ({
             <div className="flex items-center space-x-4">
               <span>尺寸: {template.dimensions?.width} × {template.dimensions?.height} px</span>
               <span>大小: {(template.size / 1024 / 1024).toFixed(1)} MB</span>
+              {template.strokeConfig && template.strokeConfig.length > 0 && (
+                <span className="text-blue-600 font-medium">
+                  描边版本: {template.strokeConfig.join('px, ')}px ({template.strokeConfig.length}个)
+                </span>
+              )}
             </div>
             <div>
               上传时间: {new Date(template.uploadedAt).toLocaleString()}

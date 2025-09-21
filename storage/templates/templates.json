@@ -1,15 +1,15 @@
 [
   {
-    "id": "tpl_1758135140713",
+    "id": "tpl_1758356301596",
     "name": "test-real",
     "fileName": "test-real.psd",
     "originalFileName": "test-real.psd",
-    "savedFileName": "tpl_1758135140713.psd",
-    "restoredFileName": "tpl_1758135140713_restored.psd",
-    "previewImage": "tpl_1758135140713_preview.png",
-    "referenceImage": "tpl_1758135140713_reference.png",
+    "savedFileName": "tpl_1758356301596.psd",
+    "restoredFileName": "tpl_1758356301596_restored.psd",
+    "previewImage": "tpl_1758356301596_preview.png",
+    "referenceImage": "tpl_1758356301596_reference.png",
     "size": 976696,
-    "uploadedAt": "2025-09-18T02:52:32.809499",
+    "uploadedAt": "2025-09-20T16:18:35.620931",
     "status": "ready",
     "dimensions": {
       "width": 3508,
@@ -29,6 +29,18 @@
       "top": 586,
       "right": 2833,
       "bottom": 1464
+    },
+    "strokeVersions": {
+      "5": "tpl_1758356301596_stroke_5px.psd",
+      "8": "tpl_1758356301596_stroke_8px.psd"
+    },
+    "strokeConfig": [
+      5,
+      8
+    ],
+    "strokeReferences": {
+      "5": "tpl_1758356301596_stroke_5px_reference.png",
+      "8": "tpl_1758356301596_stroke_8px_reference.png"
     },
     "components": []
   }

@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { validatePSDFile, formatFileSize } from '../utils/index.ts';
 import { apiService } from '../services/api.ts';
-import { UploadProgress } from '../types/index.ts';
+import { UploadProgress, StrokeConfig, StrokeUploadData } from '../types/index.ts';
+import { StrokeConfigPanel } from './StrokeConfigPanel.tsx';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [strokeConfigs, setStrokeConfigs] = useState<StrokeConfig[]>([]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -69,8 +71,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     });
 
     try {
+      // 准备stroke配置数据
+      const enabledWidths = strokeConfigs
+        .filter(config => config.enabled)
+        .map(config => config.width);
+
+      const strokeUploadData: StrokeUploadData | undefined =
+        enabledWidths.length > 0 ? { strokeWidths: enabledWidths } : undefined;
+
       const result = await apiService.uploadTemplate(
         selectedFile,
+        strokeUploadData,
         (progress) => {
           setUploadProgress(prev => prev ? { ...prev, progress } : null);
         }
@@ -107,6 +118,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const handleCancel = useCallback(() => {
     setSelectedFile(null);
     setUploadProgress(null);
+    setStrokeConfigs([]);
     onClose();
   }, [onClose]);
 
@@ -256,7 +268,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50 p-4"
       onClick={handleModalClick}
     >
       <div className="bg-white rounded-xl shadow-elegant-lg max-w-md w-full max-h-screen overflow-y-auto animate-scale-in">
@@ -274,14 +286,28 @@ export const UploadModal: React.FC<UploadModalProps> = ({
         </div>
 
         {/* 模态框内容 */}
-        <div className="p-6">
-          {uploadProgress ? (
-            renderUploadProgress()
-          ) : selectedFile ? (
-            renderFilePreview()
-          ) : (
-            renderUploadZone()
+        <div className="p-6 space-y-6">
+          {/* Stroke配置面板 - 仅在非上传进行中时显示 */}
+          {!uploadProgress && (
+            <div>
+              <StrokeConfigPanel
+                strokeConfigs={strokeConfigs}
+                onStrokeConfigsChange={setStrokeConfigs}
+                maxConfigs={5}
+              />
+            </div>
           )}
+
+          {/* 主要内容区域 */}
+          <div>
+            {uploadProgress ? (
+              renderUploadProgress()
+            ) : selectedFile ? (
+              renderFilePreview()
+            ) : (
+              renderUploadZone()
+            )}
+          </div>
         </div>
       </div>
     </div>
