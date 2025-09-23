@@ -38,6 +38,7 @@ class PSDProcessorCore:
         storage_root = get_storage_root()
         self.templates_dir = storage_root / "templates"
         self.inside_dir = storage_root / "inside"
+        self.inside_stroke_v2_dir = storage_root / "inside_stroke_v2"
         self.previews_dir = storage_root / "previews"
         self.references_dir = storage_root / "references"
         self.components_dir = storage_root / "components"
@@ -138,6 +139,7 @@ class PSDProcessorCore:
         """确保存储目录存在"""
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.inside_dir.mkdir(parents=True, exist_ok=True)
+        self.inside_stroke_v2_dir.mkdir(parents=True, exist_ok=True)
         self.previews_dir.mkdir(parents=True, exist_ok=True)
         self.references_dir.mkdir(parents=True, exist_ok=True)
         self.components_dir.mkdir(parents=True, exist_ok=True)
@@ -437,11 +439,12 @@ class PSDProcessorCore:
         """
         try:
             stroke_filename = f"{template_id}_stroke_{stroke_width}px.psd"
-            stroke_psd_path = self.inside_dir / stroke_filename
+            stroke_psd_path = self.inside_stroke_v2_dir / stroke_filename
 
             # 使用临时目录确保自动清理
             with tempfile.TemporaryDirectory(prefix=f"stroke_{stroke_width}px_") as temp_base:
                 layers_dir = Path(temp_base) / "extracted"
+                expanded_dir = Path(temp_base) / "expanded"
                 stroked_dir = Path(temp_base) / "stroked"
 
                 # 步骤1: 提取PNG图层
@@ -452,8 +455,23 @@ class PSDProcessorCore:
                 if not extract_success:
                     return False, f"PNG图层提取失败"
 
-                # 步骤2: 对part图层进行描边处理
-                print(f"  [STEP2] 描边part图层 (宽度: {stroke_width}px)...", flush=True, file=sys.stderr)
+                # 步骤2: 画布外扩（中心锚点）：为每个PNG四面各扩 {stroke_width}px
+                print(f"  [STEP2] 画布外扩 (四面各 {stroke_width}px)...", flush=True, file=sys.stderr)
+                expanded_dir.mkdir(exist_ok=True)
+                from PIL import Image as PILImage
+                import glob as _glob
+                src_pngs = _glob.glob(str(layers_dir / "*.png"))
+                for p in src_pngs:
+                    im = PILImage.open(p).convert('RGBA')
+                    w, h = im.size
+                    new_w, new_h = w + 2*int(stroke_width), h + 2*int(stroke_width)
+                    canvas = PILImage.new('RGBA', (new_w, new_h), (0, 0, 0, 0))
+                    canvas.paste(im, (int(stroke_width), int(stroke_width)))
+                    dst = Path(expanded_dir) / Path(p).name
+                    canvas.save(str(dst), 'PNG', optimize=True)
+
+                # 步骤3: 对part图层进行描边处理（基于扩展后的PNG）
+                print(f"  [STEP3] 描边part图层 (宽度: {stroke_width}px)...", flush=True, file=sys.stderr)
                 stroked_dir.mkdir(exist_ok=True)
 
                 # 创建描边处理器
@@ -465,7 +483,7 @@ class PSDProcessorCore:
 
                 # 处理每个图层
                 import glob
-                png_files = glob.glob(str(layers_dir / "*.png"))
+                png_files = glob.glob(str(expanded_dir / "*.png"))
                 part_count = 0
 
                 for png_file in png_files:
@@ -484,14 +502,14 @@ class PSDProcessorCore:
                             print(f"    ❌ 描边失败 {layer_name}: {e}", flush=True, file=sys.stderr)
                             return False, f"图层描边失败: {layer_name}"
                     else:
-                        # view图层等直接复制
+                        # 非part图层（含view）直接复制扩展后的PNG
                         shutil.copy2(png_file, output_path)
                         print(f"    ✓ 复制图层: {layer_name}", flush=True, file=sys.stderr)
 
-                print(f"  [STEP2] 描边处理完成，part图层数: {part_count}", flush=True, file=sys.stderr)
+                print(f"  [STEP3] 描边处理完成，part图层数: {part_count}", flush=True, file=sys.stderr)
 
-                # 步骤3: 重组为PSD
-                print(f"  [STEP3] 重组PSD...", flush=True, file=sys.stderr)
+                # 步骤4: 重组为PSD
+                print(f"  [STEP4] 重组PSD...", flush=True, file=sys.stderr)
                 create_success = scaler.create_psd_from_dir(str(stroked_dir), str(stroke_psd_path))
 
                 if not create_success:
@@ -723,7 +741,7 @@ class PSDProcessorCore:
     def _generate_stroke_reference_image(self, template_id, stroke_width):
         """生成 stroke 参考图：逻辑与原参考图一致，但输入为 stroke 版 inside PSD。"""
         try:
-            stroke_psd = self.inside_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
+            stroke_psd = self.inside_stroke_v2_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
             if not stroke_psd.exists():
                 return False, f"找不到stroke PSD: {stroke_psd.name}"
             return self._render_reference_from_psd(stroke_psd, f"{template_id}_stroke_{int(stroke_width)}px_reference.png")
@@ -744,7 +762,7 @@ class PSDProcessorCore:
                 if candidate.exists():
                     return True, filename
         # 没有则生成：若缺失stroke版PSD，先按需生成
-        stroke_psd = self.inside_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
+        stroke_psd = self.inside_stroke_v2_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
         if not stroke_psd.exists():
             source_psd = self.get_restored_psd_path(template_id)
             if not source_psd or not source_psd.exists():
@@ -916,7 +934,7 @@ class PSDProcessorCore:
                 candidate_name = versions.get(sw) or versions.get(str(sw))
                 if not candidate_name:
                     return False, "未配置该stroke版本"
-                p = self.inside_dir / candidate_name
+                p = self.inside_stroke_v2_dir / candidate_name
                 if not p.exists():
                     return False, "所选stroke版本文件不存在"
                 selected_psd_path = p
@@ -1870,7 +1888,7 @@ class PSDProcessorCore:
             stroke_versions = template_to_delete.get('strokeVersions') or {}
             for k, fname in list(stroke_versions.items()):
                 try:
-                    fpath = self.inside_dir / fname
+                    fpath = self.inside_stroke_v2_dir / fname
                     if fpath.exists():
                         fpath.unlink()
                 except Exception as e:
