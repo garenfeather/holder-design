@@ -20,15 +20,15 @@ import traceback
 BACKEND_DIR = Path(__file__).parent
 sys.path.insert(0, str(BACKEND_DIR))
 
-from config import CONFIG
+from config import CONFIG, settings, processing_config
 from processor_core import processor_core
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
 
 # 配置
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB 最大文件大小
-app.config['API_BASE_URL'] = CONFIG["API_BASE_URL"]
+app.config['MAX_CONTENT_LENGTH'] = settings.max_content_length
+app.config['API_BASE_URL'] = settings.api_base_url
 
 
 def json_error(message: str, status: int = 400, include_success: bool = False, **kwargs):

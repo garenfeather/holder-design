@@ -12,6 +12,9 @@ from pathlib import Path
 # 第三方库导入
 from PIL import Image, ImageFilter, ImageChops
 
+# 本地模块导入
+from config import processing_config
+
 # 尝试导入numpy和scipy，如果失败则使用备用算法
 try:
     import numpy as np
@@ -28,7 +31,7 @@ class PNGStrokeProcessor:
     支持scipy高级算法和PIL备用算法，具备UTF-8字符支持。
     """
 
-    def __init__(self, stroke_width=2, stroke_color=(255, 255, 255, 255), smooth_factor=1.0):
+    def __init__(self, stroke_width=None, stroke_color=None, smooth_factor=None):
         """
         初始化PNG描边处理器
 
@@ -37,9 +40,9 @@ class PNGStrokeProcessor:
             stroke_color (tuple): 描边颜色 (R, G, B, A)
             smooth_factor (float): 光滑因子，越大越平滑
         """
-        self.stroke_width = stroke_width
-        self.stroke_color = stroke_color
-        self.smooth_factor = smooth_factor
+        self.stroke_width = stroke_width or processing_config.DEFAULT_STROKE_WIDTH
+        self.stroke_color = stroke_color or processing_config.DEFAULT_STROKE_COLOR
+        self.smooth_factor = smooth_factor or processing_config.DEFAULT_STROKE_SMOOTH_FACTOR
 
     def _has_scipy(self):
         """检测scipy可用性"""
@@ -242,7 +245,7 @@ class PNGStrokeProcessor:
             }
 
 
-def create_stroke_processor(stroke_width=2, stroke_color=(255, 255, 255, 255), smooth_factor=1.0):
+def create_stroke_processor(stroke_width=None, stroke_color=None, smooth_factor=None):
     """
     工厂函数：创建PNG描边处理器实例
 
@@ -258,7 +261,7 @@ def create_stroke_processor(stroke_width=2, stroke_color=(255, 255, 255, 255), s
 
 
 # 兼容性函数：与原脚本保持一致的接口
-def process_png_stroke(input_image, stroke_width=2, stroke_color=(255, 255, 255, 255)):
+def process_png_stroke(input_image, stroke_width=None, stroke_color=None):
     """
     兼容性函数：简化的PNG描边接口
 
@@ -284,7 +287,7 @@ if __name__ == "__main__":
 
     input_path = sys.argv[1]
     output_path = sys.argv[2] if len(sys.argv) > 2 else None
-    stroke_width = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+    stroke_width = int(sys.argv[3]) if len(sys.argv) > 3 else processing_config.DEFAULT_STROKE_WIDTH
 
     if not output_path:
         input_p = Path(input_path)

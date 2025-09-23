@@ -19,6 +19,7 @@ import struct
 import io
 from pathlib import Path
 from utils.strings import sanitize_name
+from config import processing_config
 
 class BinaryPSDTransformer:
     def _clean_layer_name(self, layer_name):
@@ -126,12 +127,12 @@ class BinaryPSDTransformer:
             self.part_bounds[part_name] = bounds
             print(f"  {part_name} 尺寸: {bounds['width']}×{bounds['height']} px")
         
-        # 计算新画布尺寸 - 以原画布中心为中心扩展到3.5倍
+        # 计算新画布尺寸 - 以原画布中心为中心扩展到配置倍数
         original_width = self.psd.width
         original_height = self.psd.height
         
-        new_width = int(original_width * 3.5)
-        new_height = int(original_height * 3.5)
+        new_width = int(original_width * processing_config.CANVAS_EXPANSION_FACTOR)
+        new_height = int(original_height * processing_config.CANVAS_EXPANSION_FACTOR)
         
         self.original_size = (original_width, original_height)
         self.new_size = (new_width, new_height)

@@ -195,10 +195,10 @@ except Exception as e:
     raise ProcessingError(f"Layer processing failed: {e}") from e
 ```
 
-### 3.2 硬编码常量 📝
+### 3.2 硬编码常量 📝 ✅ **已完成**
 
-#### 魔术数字遍布
-```python
+#### ~~魔术数字遍布~~ **已解决**
+~~```python
 # transformer_outside.py:141-142
 new_width = view_width + part1_width + part3_width + 400  # ❌ 400是什么？
 new_height = view_height + part2_height + part4_height + 400
@@ -208,21 +208,31 @@ stroke_threshold = 10  # ❌ 为什么是10？
 
 # app.py:31
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # ❌ 硬编码100MB
-```
+```~~
 
-**改进建议**: 配置化管理
+**✅ 已实施**: 使用pydantic配置化管理
 ```python
-# config.py
-@dataclass
-class ProcessingConfig:
-    CANVAS_PADDING: int = 400
-    STROKE_THRESHOLD: int = 10
-    MAX_FILE_SIZE: int = 100 * 1024 * 1024
+# config.py - 新实现
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
-# 使用时
-config = ProcessingConfig()
-new_width = view_width + part1_width + part3_width + config.CANVAS_PADDING
+class ProcessingConfig(BaseSettings):
+    CANVAS_PADDING: int = Field(400, description="画布额外填充像素")
+    CANVAS_EXPANSION_FACTOR: float = Field(3.5, description="画布扩展倍数")
+    DEFAULT_STROKE_WIDTH: int = Field(2, description="默认描边宽度")
+    DEFAULT_STROKE_COLOR: Tuple[int, int, int, int] = Field((255, 255, 255, 255), description="默认描边颜色")
+    MAX_FILE_SIZE: int = Field(100 * 1024 * 1024, description="最大文件大小")
+
+# 使用时 - 已应用到所有文件
+from config import processing_config
+new_width = view_width + part1_width + part3_width + processing_config.CANVAS_PADDING
 ```
+
+**配置特性**:
+- 🔧 **类型安全**: 使用pydantic自动类型验证
+- 🌍 **环境变量**: 支持`PROCESSING_*`环境变量覆盖
+- 📝 **文档化**: 每个配置项都有描述信息
+- 🔄 **向后兼容**: 保留原有配置API
 
 ### 3.3 缺乏类型注解 🏷️
 
@@ -546,22 +556,29 @@ def secure_temp_file(suffix: str = '.tmp', dir: Optional[Path] = None):
 ### 🚨 阶段1: 立即修复 (1-2周)
 
 #### 高优先级问题
-1. **安全性修复**
+1. **~~硬编码常量配置化~~** ✅ **已完成**
+   - [x] 创建pydantic配置系统 (`config.py`)
+   - [x] 替换所有魔术数字和硬编码常量
+   - [x] 实现环境变量覆盖支持
+   - [x] 添加配置文档和类型安全
+
+2. **安全性修复**
    - [ ] 实现文件上传验证 (`app.py`)
    - [ ] 修复路径遍历风险 (`processor_core.py`)
    - [ ] 改进临时文件处理 (所有模块)
 
-2. **异常处理改进**
+3. **异常处理改进**
    - [ ] 替换裸露的except子句
    - [ ] 添加结构化错误信息
    - [ ] 实现统一的异常处理机制
 
-3. **类型注解添加**
+4. **类型注解添加**
    - [ ] 为所有公共API添加类型提示
    - [ ] 配置mypy类型检查
    - [ ] 修复类型不一致问题
 
 #### 预期收益
+- ✅ **配置管理现代化** - 类型安全的配置系统
 - 🔐 提升安全性
 - 🐛 减少运行时错误
 - 🧑‍💻 改善开发体验
