@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Check, AlertTriangle, RotateCcw, Download, Eye, EyeOff, Crop, AlignCenter, ZoomIn, ZoomOut, RotateCw, Package } from 'lucide-react';
+import { X, Upload, Check, RotateCcw, Download, Eye, EyeOff, Crop, ZoomIn, ZoomOut, RotateCw, Package } from 'lucide-react';
 import { Template, GenerateResult, Component } from '../types/index.ts';
 import { apiService, API_BASE_URL } from '../services/api.ts';
 
@@ -37,7 +37,7 @@ export const UseModal: React.FC<UseModalProps> = ({
     scale: 1,
     rotation: 0
   });
-  const [forceResize, setForceResize] = useState(false);
+  // 去除强制对齐选项：最终一律输出为模板尺寸
   const [isProcessing, setIsProcessing] = useState(false);
   const [generateResult, setGenerateResult] = useState<GenerateResult | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -75,7 +75,7 @@ export const UseModal: React.FC<UseModalProps> = ({
       setEditedSize(null);
       setRatioCheck(null);
       setImageTransform({ x: 0, y: 0, scale: 1, rotation: 0 });
-      setForceResize(false);
+      // 无强制对齐选项
       setIsProcessing(false);
       setGenerateResult(null);
       setUploadProgress(0);
@@ -419,21 +419,15 @@ export const UseModal: React.FC<UseModalProps> = ({
       final: { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
     });
     
-    // 设置输出画布尺寸
-    let outputWidth, outputHeight;
-    if (templateAspectRatio > 1) {
-      outputWidth = Math.max(cropWidth, 800);
-      outputHeight = Math.round(outputWidth / templateAspectRatio);
-    } else {
-      outputHeight = Math.max(cropHeight, 800);
-      outputWidth = Math.round(outputHeight * templateAspectRatio);
-    }
+    // 设置输出画布尺寸为模板尺寸（统一到模板尺寸）
+    const outputWidth = templateWidth;
+    const outputHeight = templateHeight;
     
     canvas.width = outputWidth;
     canvas.height = outputHeight;
     ctx.clearRect(0, 0, outputWidth, outputHeight);
 
-    // 绘制裁剪后的图片
+    // 绘制裁剪后的图片（按模板尺寸拉伸/收缩）
     ctx.drawImage(
       image,
       cropX,
@@ -445,6 +439,12 @@ export const UseModal: React.FC<UseModalProps> = ({
       outputWidth,
       outputHeight
     );
+
+    // 尺寸确认：若选框对应像素尺寸小于模板尺寸，提示“将会拉伸”
+    if (cropWidth < templateWidth || cropHeight < templateHeight) {
+      const ok = window.confirm(`选框像素(${Math.round(cropWidth)}×${Math.round(cropHeight)}) 小于模板尺寸(${templateWidth}×${templateHeight})，将会被拉伸处理，是否继续？`);
+      if (!ok) return;
+    }
 
     // 转换为文件
     canvas.toBlob((blob) => {
@@ -473,7 +473,7 @@ export const UseModal: React.FC<UseModalProps> = ({
         template.id, 
         selectedImage,
         (progress) => setUploadProgress(progress),
-        forceResize,
+        undefined,
         selectedComponent?.id,
         selectedStrokeWidth ?? null
       );
@@ -635,35 +635,9 @@ export const UseModal: React.FC<UseModalProps> = ({
                 </div>
               </div>
 
-              {/* 编辑选项 */}
+              {/* 编辑选项（去除强制对齐开关） */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <label className="inline-flex items-center space-x-2 cursor-pointer select-none">
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          id="forceResize"
-                          checked={forceResize}
-                          onChange={(e) => setForceResize(e.target.checked)}
-                          className="peer sr-only"
-                        />
-                        <span
-                          aria-hidden
-                          className="h-4 w-4 rounded-md border border-gray-300 bg-white shadow-sm flex items-center justify-center transition
-                                     hover:border-primary-400 peer-focus:ring-2 peer-focus:ring-primary-500 peer-focus:ring-offset-2
-                                     peer-checked:bg-primary-600 peer-checked:border-primary-600 peer-checked:text-white"
-                        >
-                          <Check className="h-3 w-3 opacity-0 transition-opacity peer-checked:opacity-100" />
-                        </span>
-                      </span>
-                      <span className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <AlignCenter className="w-4 h-4" />
-                        <span>强制对齐到模板尺寸</span>
-                      </span>
-                    </label>
-                  </div>
-                    
+                <div className="flex items-center justify-end">
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setShowReferenceOverlay(!showReferenceOverlay)}
@@ -689,14 +663,6 @@ export const UseModal: React.FC<UseModalProps> = ({
                     </button>
                   </div>
                 </div>
-                
-                {forceResize && (
-                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      <strong>强制对齐说明：</strong>选中后，生成时会将选框内容强制调整到模板要求尺寸（{template.viewLayer?.width} × {template.viewLayer?.height}px），然后进行裁切处理。
-                    </p>
-                  </div>
-                )}
                 
                 {showReferenceOverlay && (
                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -1055,7 +1021,7 @@ export const UseModal: React.FC<UseModalProps> = ({
                       const tplW = template.viewLayer?.width;
                       const tplH = template.viewLayer?.height;
                       const nonForceTarget = editedSize || cutPreviewSize || originalImageSize;
-                      const decided = (forceResize && tplW && tplH)
+                      const decided = (tplW && tplH)
                         ? { width: tplW, height: tplH }
                         : (nonForceTarget ? { width: Math.round(nonForceTarget.width), height: Math.round(nonForceTarget.height) } : null);
                       const sizeText = decided ? `｜${decided.width} × ${decided.height} px` : '';
