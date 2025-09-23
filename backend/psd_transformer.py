@@ -41,10 +41,11 @@ class BinaryPSDTransformer:
             
         return clean_name
     
-    def __init__(self, input_path, output_path=None):
+    def __init__(self, input_path, output_path=None, stroke_width=None):
         self.input_path = Path(input_path)
         self.output_path = Path(output_path) if output_path else self._generate_output_path()
         self.required_layers = ["view", "part1", "part2", "part3", "part4"]
+        self.stroke_width = stroke_width
         
     def _generate_output_path(self):
         """生成输出文件路径"""
@@ -111,6 +112,10 @@ class BinaryPSDTransformer:
     def step2_calculate_transformations(self):
         """2. 计算所有变换参数"""
         print(f"\n📐 步骤2：计算变换参数...")
+        if self.stroke_width:
+            print(f"  🎯 使用stroke偏移: {self.stroke_width}px")
+        else:
+            print(f"  🎯 未使用stroke偏移")
         
         # 获取各part图层的尺寸
         self.part_bounds = {}
@@ -176,17 +181,29 @@ class BinaryPSDTransformer:
             
             # 再应用移动
             if layer_name == 'part1':
-                final_x = centered_x - self.part_bounds['part1']['width']
+                move_distance = self.part_bounds['part1']['width']
+                if self.stroke_width:
+                    move_distance -= 2 * self.stroke_width
+                final_x = centered_x - move_distance
                 final_y = centered_y
             elif layer_name == 'part2':
+                move_distance = self.part_bounds['part2']['height']
+                if self.stroke_width:
+                    move_distance -= 2 * self.stroke_width
                 final_x = centered_x
-                final_y = centered_y - self.part_bounds['part2']['height']
+                final_y = centered_y - move_distance
             elif layer_name == 'part3':
-                final_x = centered_x + self.part_bounds['part3']['width'] 
+                move_distance = self.part_bounds['part3']['width']
+                if self.stroke_width:
+                    move_distance -= 2 * self.stroke_width
+                final_x = centered_x + move_distance
                 final_y = centered_y
             elif layer_name == 'part4':
+                move_distance = self.part_bounds['part4']['height']
+                if self.stroke_width:
+                    move_distance -= 2 * self.stroke_width
                 final_x = centered_x
-                final_y = centered_y + self.part_bounds['part4']['height']
+                final_y = centered_y + move_distance
             else:
                 final_x = centered_x
                 final_y = centered_y
@@ -201,6 +218,9 @@ class BinaryPSDTransformer:
             }
             
             move_info = f"  {key_name}: ({bounds['x1']},{bounds['y1']}) → 中心对齐({centered_x},{centered_y}) → 最终({final_x},{final_y})"
+            if layer_name.startswith('part') and self.stroke_width:
+                original_distance = self.part_bounds[layer_name]['width'] if layer_name in ['part1', 'part3'] else self.part_bounds[layer_name]['height']
+                move_info += f" [原移动:{original_distance}px - 2*stroke:{2*self.stroke_width}px = 总移动:{original_distance - 2*self.stroke_width}px]"
             if self.final_positions[key_name]['flip_type']:
                 move_info += f" [{self.final_positions[key_name]['flip_type']}翻转]"
             print(move_info)

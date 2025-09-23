@@ -968,7 +968,7 @@ class PSDProcessorCore:
             
             # 步骤2: 使用transform_template_final进行最终变换 result.psd -> final.psd
             final_success, final_path = self._apply_final_transform(
-                result_path, result_id
+                result_path, result_id, used_stroke_width
             )
             
             if not final_success:
@@ -1735,7 +1735,7 @@ class PSDProcessorCore:
             print(f"[ERROR] 生成缩放PSD失败: {e}", flush=True, file=sys.stderr)
             return None
     
-    def _apply_final_transform(self, result_psd_path, result_id):
+    def _apply_final_transform(self, result_psd_path, result_id, stroke_width=None):
         """应用最终变换"""
         try:
             import sys
@@ -1751,7 +1751,7 @@ class PSDProcessorCore:
             print(f"输出文件路径: {final_path}", flush=True, file=sys.stderr)
             
             # 使用transform_template_final进行最终变换
-            transformer = BinaryPSDTransformer(result_psd_path, str(final_path))
+            transformer = BinaryPSDTransformer(result_psd_path, str(final_path), stroke_width)
             transformer.transform()
             
             # 验证输出文件是否生成成功
