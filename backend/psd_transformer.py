@@ -389,7 +389,6 @@ class BinaryPSDTransformer:
     
     def _write_transformed_psd(self, layers_data):
         """写入变换后的PSD文件"""
-        import io
         
         canvas_width, canvas_height = self.new_size
         

@@ -5,16 +5,20 @@ import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
 """PSD缩放功能模块 - 集成自scripts/full_scale.py"""
 
-import os
+# 标准库导入
 import glob
 import shutil
 import tempfile
+
+# 第三方库导入
 from PIL import Image
 from psd_tools import PSDImage
-from utils.strings import sanitize_name
 from psd_tools.api.psd_image import PSDImage as PSDImageAPI
 from psd_tools.api.layers import PixelLayer
 from psd_tools.constants import Compression
+
+# 本地模块导入
+from utils.strings import sanitize_name
 
 
 class PSDScaler:

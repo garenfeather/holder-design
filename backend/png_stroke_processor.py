@@ -5,11 +5,12 @@ import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
 """PNG描边处理器 - 复现png_edge_stroke.py的描边逻辑"""
 
+# 标准库导入
 import sys
-from PIL import Image, ImageFilter, ImageChops
 from pathlib import Path
-import tempfile
-import shutil
+
+# 第三方库导入
+from PIL import Image, ImageFilter, ImageChops
 
 # 尝试导入numpy和scipy，如果失败则使用备用算法
 try:

@@ -382,7 +382,6 @@ class OutsideTransformer:
     
     def _write_transformed_psd(self, layers_data):
         """写入变换后的PSD文件"""
-        import io
         
         canvas_width, canvas_height = self.new_size
         
@@ -496,7 +495,7 @@ class OutsideTransformer:
         
         # 更新图层信息长度
         layer_info_end = f.tell()
-            f.seek(layer_info_start)
+        f.seek(layer_info_start)
         f.write(struct.pack('>I', layer_info_end - layer_info_start - 4))
         f.seek(layer_info_end)
     

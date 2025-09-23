@@ -16,7 +16,6 @@ PSD模板图片替换器
 
 from psd_tools import PSDImage
 from PIL import Image
-import shutil
 import struct
 import io
 from pathlib import Path

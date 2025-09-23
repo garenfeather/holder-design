@@ -5,14 +5,17 @@ import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
 """集成的PSD处理器 - 集成自scripts/integrated_processor.py"""
 
-from psd_tools import PSDImage
-from utils.strings import sanitize_name
-from PIL import Image, ImageOps
-import shutil
+# 标准库导入
 import struct
 import io
 from pathlib import Path
-import tempfile
+
+# 第三方库导入
+from psd_tools import PSDImage
+from PIL import Image, ImageOps
+
+# 本地模块导入
+from utils.strings import sanitize_name
 
 
 class IntegratedProcessor:

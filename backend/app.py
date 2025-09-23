@@ -12,7 +12,6 @@ Flask PSD 模板处理服务器
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import tempfile
-import os
 import sys
 from pathlib import Path
 import traceback

@@ -6,12 +6,12 @@ PSD裁剪工具 - 集成自scripts/psd_crop_view_parts.py
 功能：以view图层为选区裁剪PSD，生成与view同尺寸的PSD文件
 """
 
-from typing import Dict, Optional
+# 标准库导入
+from typing import Dict
+
+# 第三方库导入
 from PIL import Image, ImageChops
 from psd_tools import PSDImage
-from pathlib import Path
-import tempfile
-import os
 
 try:
     from pytoshop.user import nested_layers as nl
