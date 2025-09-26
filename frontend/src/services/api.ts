@@ -298,9 +298,8 @@ class ApiService {
       const formData = new FormData();
       formData.append('templateId', templateId);
       formData.append('image', imageFile);
-      if (forceResize !== undefined) {
-        formData.append('forceResize', forceResize.toString());
-      }
+      // 统一到模板尺寸：始终对齐（后端将按模板尺寸对齐图片与模板）
+      formData.append('forceResize', 'true');
       if (componentId) {
         formData.append('componentId', componentId);
       }

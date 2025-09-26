@@ -5,14 +5,18 @@ import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
 """集成的PSD处理器 - 集成自scripts/integrated_processor.py"""
 
-from psd_tools import PSDImage
-from utils.strings import sanitize_name
-from PIL import Image, ImageOps
-import shutil
+# 标准库导入
 import struct
 import io
 from pathlib import Path
-import tempfile
+
+# 第三方库导入
+from psd_tools import PSDImage
+from PIL import Image, ImageOps
+
+# 本地模块导入
+from utils.strings import sanitize_name
+from config import processing_config
 
 
 class IntegratedProcessor:
@@ -184,11 +188,11 @@ class IntegratedProcessor:
         """对图层进行变换（画布扩展、移动、翻转）"""
         print(f"\n[TARGET] 进行图层变换")
         
-        # 计算新画布尺寸（3.5倍扩展）
+        # 计算新画布尺寸（配置倍数扩展）
         original_width = self.template.width
         original_height = self.template.height
-        new_width = int(original_width * 3.5)
-        new_height = int(original_height * 3.5)
+        new_width = int(original_width * processing_config.CANVAS_EXPANSION_FACTOR)
+        new_height = int(original_height * processing_config.CANVAS_EXPANSION_FACTOR)
         center_offset_x = (new_width - original_width) // 2
         center_offset_y = (new_height - original_height) // 2
         

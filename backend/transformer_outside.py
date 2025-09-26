@@ -19,6 +19,7 @@ import shutil
 import struct
 import io
 from pathlib import Path
+from config import processing_config
 
 class OutsideTransformer:
     def transform(self, input_path, output_path):
@@ -138,8 +139,8 @@ class OutsideTransformer:
         part3_width = self.part_bounds['part3']['width']
         part4_height = self.part_bounds['part4']['height']
 
-        new_width = view_width + part1_width + part3_width + 400
-        new_height = view_height + part2_height + part4_height + 400
+        new_width = view_width + part1_width + part3_width + processing_config.CANVAS_PADDING
+        new_height = view_height + part2_height + part4_height + processing_config.CANVAS_PADDING
         
         original_width = self.psd.width
         original_height = self.psd.height
@@ -344,8 +345,15 @@ class OutsideTransformer:
         except Exception as e:
             print(f"  警告：无法提取分辨率信息: {e}")
         
-        # 默认返回72 DPI
-        return {'h_res': 72.0, 'v_res': 72.0, 'h_res_unit': 1, 'v_res_unit': 1, 'width_unit': 1, 'height_unit': 1}
+        # 默认返回配置的DPI
+        return {
+            'h_res': processing_config.DEFAULT_DPI_H,
+            'v_res': processing_config.DEFAULT_DPI_V,
+            'h_res_unit': processing_config.DEFAULT_DPI_UNIT,
+            'v_res_unit': processing_config.DEFAULT_DPI_UNIT,
+            'width_unit': processing_config.DEFAULT_DPI_UNIT,
+            'height_unit': processing_config.DEFAULT_DPI_UNIT
+        }
     
     def _create_resolution_resource(self, h_res, v_res, h_res_unit=1, v_res_unit=1, width_unit=1, height_unit=1):
         """创建分辨率资源数据"""
@@ -382,7 +390,6 @@ class OutsideTransformer:
     
     def _write_transformed_psd(self, layers_data):
         """写入变换后的PSD文件"""
-        import io
         
         canvas_width, canvas_height = self.new_size
         
@@ -496,7 +503,7 @@ class OutsideTransformer:
         
         # 更新图层信息长度
         layer_info_end = f.tell()
-            f.seek(layer_info_start)
+        f.seek(layer_info_start)
         f.write(struct.pack('>I', layer_info_end - layer_info_start - 4))
         f.seek(layer_info_end)
     

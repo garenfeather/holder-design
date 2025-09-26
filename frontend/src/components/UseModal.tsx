@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Check, AlertTriangle, RotateCcw, Download, Eye, EyeOff, Crop, AlignCenter, ZoomIn, ZoomOut, RotateCw, Package } from 'lucide-react';
+import { X, Upload, Check, RotateCcw, Download, Eye, EyeOff, Crop, ZoomIn, ZoomOut, RotateCw, Package } from 'lucide-react';
 import { Template, GenerateResult, Component } from '../types/index.ts';
 import { apiService, API_BASE_URL } from '../services/api.ts';
 
@@ -37,13 +37,15 @@ export const UseModal: React.FC<UseModalProps> = ({
     scale: 1,
     rotation: 0
   });
-  const [forceResize, setForceResize] = useState(false);
+  // 去除强制对齐选项：最终一律输出为模板尺寸
   const [isProcessing, setIsProcessing] = useState(false);
   const [generateResult, setGenerateResult] = useState<GenerateResult | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [originalImageSize, setOriginalImageSize] = useState<{ width: number; height: number } | null>(null);
   const [editedPreview, setEditedPreview] = useState<string | null>(null);
   const [editedSize, setEditedSize] = useState<{ width: number; height: number } | null>(null);
+  const [templateCropPreview, setTemplateCropPreview] = useState<string | null>(null);
+  const [templateCropSize, setTemplateCropSize] = useState<{ width: number; height: number } | null>(null);
   const [finalPreviewSize, setFinalPreviewSize] = useState<{ width: number; height: number } | null>(null);
   const [cutPreviewSize, setCutPreviewSize] = useState<{ width: number; height: number } | null>(null);
   const [componentPreviewSize, setComponentPreviewSize] = useState<{ width: number; height: number } | null>(null);
@@ -73,9 +75,11 @@ export const UseModal: React.FC<UseModalProps> = ({
       setImagePreview(null);
       setEditedPreview(null);
       setEditedSize(null);
+      setTemplateCropPreview(null);
+      setTemplateCropSize(null);
       setRatioCheck(null);
       setImageTransform({ x: 0, y: 0, scale: 1, rotation: 0 });
-      setForceResize(false);
+      // 无强制对齐选项
       setIsProcessing(false);
       setGenerateResult(null);
       setUploadProgress(0);
@@ -369,71 +373,69 @@ export const UseModal: React.FC<UseModalProps> = ({
     if (!ctx) return;
 
     const image = imageRef.current;
-    
+
     // 获取模板尺寸
     const templateWidth = template.viewLayer.width;
     const templateHeight = template.viewLayer.height;
-    const templateAspectRatio = templateWidth / templateHeight;
-    
+
     // 编辑器尺寸
     const editorSize = getEditorSize();
     const editorWidth = editorSize.width;
     const editorHeight = editorSize.height;
-    
+
     // 使用预计算的图片显示信息
     if (!imageDisplayInfo) {
       console.error('图片显示信息未初始化');
       return;
     }
-    
+
     const { width: displayWidth, height: displayHeight, initialX, initialY } = imageDisplayInfo;
-    
+
     // 用户变换后的图片实际位置和尺寸
     const finalScale = imageTransform.scale;
     const finalWidth = displayWidth * finalScale;
     const finalHeight = displayHeight * finalScale;
     const finalX = initialX + imageTransform.x;
     const finalY = initialY + imageTransform.y;
-    
+
     // 裁切框在编辑器中的位置
     const cropBoxX = (editorWidth - cropBoxSize.width) / 2;
     const cropBoxY = (editorHeight - cropBoxSize.height) / 2;
-    
+
     // 裁切框相对于变换后图片的位置（归一化坐标 0-1）
     const relativeX = (cropBoxX - finalX) / finalWidth;
     const relativeY = (cropBoxY - finalY) / finalHeight;
     const relativeWidth = cropBoxSize.width / finalWidth;
     const relativeHeight = cropBoxSize.height / finalHeight;
-    
+
     // 转换为原始图片像素坐标
     const cropX = Math.max(0, Math.min(image.naturalWidth, relativeX * image.naturalWidth));
     const cropY = Math.max(0, Math.min(image.naturalHeight, relativeY * image.naturalHeight));
     const cropWidth = Math.max(0, Math.min(image.naturalWidth - cropX, relativeWidth * image.naturalWidth));
     const cropHeight = Math.max(0, Math.min(image.naturalHeight - cropY, relativeHeight * image.naturalHeight));
-    
+
+    // 计算缩放比例 s = 模板/选区
+    const scaleRatio = templateWidth / cropWidth; // 假设选区已按模板比例
+
     console.log('裁切计算:', {
       displaySize: { width: displayWidth, height: displayHeight },
       finalPosition: { x: finalX, y: finalY, width: finalWidth, height: finalHeight },
       cropBox: { x: cropBoxX, y: cropBoxY, width: cropBoxSize.width, height: cropBoxSize.height },
       relative: { x: relativeX, y: relativeY, width: relativeWidth, height: relativeHeight },
-      final: { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
+      final: { x: cropX, y: cropY, width: cropWidth, height: cropHeight },
+      scaleRatio
     });
-    
-    // 设置输出画布尺寸
-    let outputWidth, outputHeight;
-    if (templateAspectRatio > 1) {
-      outputWidth = Math.max(cropWidth, 800);
-      outputHeight = Math.round(outputWidth / templateAspectRatio);
-    } else {
-      outputHeight = Math.max(cropHeight, 800);
-      outputWidth = Math.round(outputHeight * templateAspectRatio);
-    }
-    
-    canvas.width = outputWidth;
-    canvas.height = outputHeight;
-    ctx.clearRect(0, 0, outputWidth, outputHeight);
 
-    // 绘制裁剪后的图片
+    // 尺寸确认：若选框对应像素尺寸小于模板尺寸，提示"将会拉伸"
+    if (cropWidth < templateWidth || cropHeight < templateHeight) {
+      const ok = window.confirm(`选框像素(${Math.round(cropWidth)}×${Math.round(cropHeight)}) 小于模板尺寸(${templateWidth}×${templateHeight})，将会被拉伸处理，是否继续？`);
+      if (!ok) return;
+    }
+
+    // 步骤1：生成模板尺寸裁切结果（始终生成）
+    canvas.width = templateWidth;
+    canvas.height = templateHeight;
+    ctx.clearRect(0, 0, templateWidth, templateHeight);
     ctx.drawImage(
       image,
       cropX,
@@ -442,24 +444,100 @@ export const UseModal: React.FC<UseModalProps> = ({
       cropHeight,
       0,
       0,
-      outputWidth,
-      outputHeight
+      templateWidth,
+      templateHeight
     );
 
-    // 转换为文件
-    canvas.toBlob((blob) => {
-      if (blob) {
-        const editedFile = new File([blob], `edited_${selectedImage.name}`, {
-          type: 'image/png'
-        });
-        
-        setSelectedImage(editedFile);
-        const url = URL.createObjectURL(blob);
-        setEditedPreview(url);
-        setEditedSize({ width: outputWidth, height: outputHeight });
-        setStep('generate');
+    const templateCropBlob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/png');
+    });
+
+    if (!templateCropBlob) {
+      console.error('模板尺寸裁切失败');
+      return;
+    }
+
+    // 保存模板尺寸裁切结果用于预览
+    const templateCropUrl = URL.createObjectURL(templateCropBlob);
+    setTemplateCropPreview(templateCropUrl);
+    setTemplateCropSize({ width: templateWidth, height: templateHeight });
+
+    // 步骤2：如果选择了Stroke，生成外扩裁切结果
+    let finalFile: File;
+    let finalPreviewUrl: string;
+    let finalSize: { width: number; height: number };
+
+    if (selectedStrokeWidth && selectedStrokeWidth > 0) {
+      // 计算原图空间的外扩量
+      const w_original = selectedStrokeWidth / scaleRatio;
+
+      // 计算扩展裁剪框
+      const ex = Math.floor(cropX - w_original);
+      const ey = Math.floor(cropY - w_original);
+      const ew = Math.ceil(cropWidth + 2 * w_original);
+      const eh = Math.ceil(cropHeight + 2 * w_original);
+
+      // 越界校验
+      if (ex < 0 || ey < 0 || ex + ew > image.naturalWidth || ey + eh > image.naturalHeight) {
+        alert('裁切失败：选区外扩已超出原图可用范围，请减小选区或降低 Stroke 宽度');
+        return;
       }
-    }, 'image/png');
+
+      // 生成外扩裁切结果
+      const expandedWidth = templateWidth + 2 * selectedStrokeWidth;
+      const expandedHeight = templateHeight + 2 * selectedStrokeWidth;
+
+      canvas.width = expandedWidth;
+      canvas.height = expandedHeight;
+      ctx.clearRect(0, 0, expandedWidth, expandedHeight);
+      ctx.drawImage(
+        image,
+        ex,
+        ey,
+        ew,
+        eh,
+        0,
+        0,
+        expandedWidth,
+        expandedHeight
+      );
+
+      const expandedCropBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/png');
+      });
+
+      if (!expandedCropBlob) {
+        console.error('外扩裁切失败');
+        return;
+      }
+
+      // 使用外扩裁切结果作为最终文件
+      finalFile = new File([expandedCropBlob], `edited_expanded_${selectedImage.name}`, {
+        type: 'image/png'
+      });
+      finalPreviewUrl = URL.createObjectURL(expandedCropBlob);
+      finalSize = { width: expandedWidth, height: expandedHeight };
+
+      console.log('外扩裁切完成:', {
+        originalCrop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight },
+        expandedCrop: { x: ex, y: ey, width: ew, height: eh },
+        w_original,
+        outputSize: { width: expandedWidth, height: expandedHeight }
+      });
+    } else {
+      // 未选择Stroke，使用模板尺寸裁切结果
+      finalFile = new File([templateCropBlob], `edited_${selectedImage.name}`, {
+        type: 'image/png'
+      });
+      finalPreviewUrl = URL.createObjectURL(templateCropBlob);
+      finalSize = { width: templateWidth, height: templateHeight };
+    }
+
+    // 设置最终文件和预览
+    setSelectedImage(finalFile);
+    setEditedPreview(finalPreviewUrl);
+    setEditedSize(finalSize);
+    setStep('generate');
   };
 
   const handleGenerate = async () => {
@@ -473,7 +551,7 @@ export const UseModal: React.FC<UseModalProps> = ({
         template.id, 
         selectedImage,
         (progress) => setUploadProgress(progress),
-        forceResize,
+        undefined,
         selectedComponent?.id,
         selectedStrokeWidth ?? null
       );
@@ -535,7 +613,7 @@ export const UseModal: React.FC<UseModalProps> = ({
         </div>
 
         {/* 内容区域 */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 overflow-y-auto overflow-x-visible max-h-[calc(90vh-140px)]">
           {/* 步骤指示器 */}
           <div className="flex items-center justify-center mb-8">
               <div className="flex items-center space-x-4">
@@ -635,41 +713,50 @@ export const UseModal: React.FC<UseModalProps> = ({
                 </div>
               </div>
 
-              {/* 编辑选项 */}
+              {/* 编辑选项和Stroke选择 */}
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <label className="inline-flex items-center space-x-2 cursor-pointer select-none">
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          id="forceResize"
-                          checked={forceResize}
-                          onChange={(e) => setForceResize(e.target.checked)}
-                          className="peer sr-only"
-                        />
-                        <span
-                          aria-hidden
-                          className="h-4 w-4 rounded-md border border-gray-300 bg-white shadow-sm flex items-center justify-center transition
-                                     hover:border-primary-400 peer-focus:ring-2 peer-focus:ring-primary-500 peer-focus:ring-offset-2
-                                     peer-checked:bg-primary-600 peer-checked:border-primary-600 peer-checked:text-white"
-                        >
-                          <Check className="h-3 w-3 opacity-0 transition-opacity peer-checked:opacity-100" />
-                        </span>
-                      </span>
-                      <span className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                        <AlignCenter className="w-4 h-4" />
-                        <span>强制对齐到模板尺寸</span>
-                      </span>
-                    </label>
+                {/* Stroke 选择区域 */}
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-3">Stroke 描边设置</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedStrokeWidth(null)}
+                      className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                        selectedStrokeWidth === null
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      不使用描边
+                    </button>
+                    {template.strokeConfig?.map((width) => (
+                      <button
+                        key={width}
+                        onClick={() => setSelectedStrokeWidth(width)}
+                        className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
+                          selectedStrokeWidth === width
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {width}px 描边
+                      </button>
+                    ))}
                   </div>
-                    
+                  {selectedStrokeWidth && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      选择 {selectedStrokeWidth}px 描边后，将生成外扩 {selectedStrokeWidth * 2}px 的裁切结果
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end">
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setShowReferenceOverlay(!showReferenceOverlay)}
                       className={`flex items-center space-x-2 px-3 py-2 border rounded-lg transition-colors ${
-                        showReferenceOverlay 
-                          ? 'bg-primary-50 border-primary-300 text-primary-700' 
+                        showReferenceOverlay
+                          ? 'bg-primary-50 border-primary-300 text-primary-700'
                           : 'bg-white border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -689,14 +776,6 @@ export const UseModal: React.FC<UseModalProps> = ({
                     </button>
                   </div>
                 </div>
-                
-                {forceResize && (
-                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      <strong>强制对齐说明：</strong>选中后，生成时会将选框内容强制调整到模板要求尺寸（{template.viewLayer?.width} × {template.viewLayer?.height}px），然后进行裁切处理。
-                    </p>
-                  </div>
-                )}
                 
                 {showReferenceOverlay && (
                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -958,9 +1037,9 @@ export const UseModal: React.FC<UseModalProps> = ({
               )}
 
               {/* 裁切结果预览与尺寸 */}
-              <div className="card p-4 mb-6 text-left">
+              <div className="card p-4 mb-6 text-left overflow-visible">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-gray-900">裁切模板选择</h4>
+                  <h4 className="font-medium text-gray-900">裁切预览</h4>
                   <div className="flex items-center gap-2">
                     {/* Stroke版本选择（存在配置时显示） */}
                     {template?.strokeConfig && template.strokeConfig.length > 0 && (
@@ -998,8 +1077,8 @@ export const UseModal: React.FC<UseModalProps> = ({
                     <button
                       onClick={() => setShowPreviewOverlay(!showPreviewOverlay)}
                       className={`flex items-center space-x-1 px-2 py-1 text-xs border rounded transition-colors ${
-                        showPreviewOverlay 
-                          ? 'bg-primary-50 border-primary-300 text-primary-700' 
+                        showPreviewOverlay
+                          ? 'bg-primary-50 border-primary-300 text-primary-700'
                           : 'bg-white border-gray-300 hover:bg-gray-50'
                       }`}
                     >
@@ -1008,27 +1087,69 @@ export const UseModal: React.FC<UseModalProps> = ({
                       ) : (
                         <Eye className="w-3 h-3" />
                       )}
-                      <span>选择模板</span>
+                      <span>参考图</span>
                     </button>
                   </div>
                 </div>
-                <div className="w-full relative">
-                  <img
-                    src={editedPreview || imagePreview || ''}
-                    alt="裁切预览"
-                    className="w-full h-auto rounded border border-gray-200"
-                    onLoad={(e) => {
-                      const img = e.currentTarget as HTMLImageElement;
-                      setCutPreviewSize({ width: img.naturalWidth, height: img.naturalHeight });
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                  
+
+                {/* 双图叠加预览区域 */}
+                <div className="w-full relative overflow-visible" style={{
+                  // 容器比例：固定使用原始view比例，不随Stroke切换
+                  aspectRatio: `${template.viewLayer?.width || 1} / ${template.viewLayer?.height || 1}`
+                }}>
+                  {/* 下层：外扩裁切结果（如果有stroke选择）*/}
+                  {selectedStrokeWidth && selectedStrokeWidth > 0 && editedPreview && (
+                    <div
+                      className="absolute rounded border border-gray-200 overflow-hidden"
+                      style={{
+                        // 外扩结果需要超出view容器边界来显示完整的外扩区域
+                        width: `${100 * ((template.viewLayer?.width || 1) + 2 * selectedStrokeWidth) / (template.viewLayer?.width || 1)}%`,
+                        height: `${100 * ((template.viewLayer?.height || 1) + 2 * selectedStrokeWidth) / (template.viewLayer?.height || 1)}%`,
+                        top: `${-100 * selectedStrokeWidth / (template.viewLayer?.height || 1)}%`,
+                        left: `${-100 * selectedStrokeWidth / (template.viewLayer?.width || 1)}%`,
+                        opacity: 0.7
+                      }}
+                    >
+                      <img
+                        src={editedPreview}
+                        alt="外扩裁切预览"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* 上层：模板尺寸裁切结果（居中叠加）*/}
+                  {templateCropPreview && (
+                    <div
+                      className="absolute rounded border-2 border-blue-300 overflow-hidden"
+                      style={{
+                        // 模板尺寸区域始终填满容器（因为容器比例就是view比例）
+                        width: '100%',
+                        height: '100%',
+                        top: '0%',
+                        left: '0%'
+                      }}
+                    >
+                      <img
+                        src={templateCropPreview}
+                        alt="模板尺寸裁切预览"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* 没有stroke时，直接显示模板尺寸裁切结果 */}
+                  {(!selectedStrokeWidth || selectedStrokeWidth === 0) && templateCropPreview && (
+                    <img
+                      src={templateCropPreview}
+                      alt="裁切预览"
+                      className="w-full h-full rounded border border-gray-200 absolute inset-0"
+                    />
+                  )}
+
                   {/* Reference图层叠加 */}
                   {showPreviewOverlay && template && (
-                    <div className="absolute inset-0 rounded border border-gray-200 overflow-hidden">
+                    <div className="absolute inset-0 rounded overflow-hidden">
                       <img
                         src={selectedStrokeWidth
                           ? `${API_BASE_URL}/api/templates/${template.id}/stroke/${selectedStrokeWidth}/reference`
@@ -1037,13 +1158,29 @@ export const UseModal: React.FC<UseModalProps> = ({
                         className="w-full h-full object-cover"
                         style={{ opacity: Math.max(0, Math.min(1, overlayOpacity / 100)) }}
                       />
-                      
+
                       <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-80 text-white text-xs px-2 py-1 rounded">
                         {selectedStrokeWidth ? `Stroke ${selectedStrokeWidth}px` : '原始'}
                       </div>
                     </div>
                   )}
+
+                  {/* 尺寸标注 */}
+                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                    {selectedStrokeWidth && selectedStrokeWidth > 0
+                      ? `外扩: ${(template.viewLayer?.width || 0) + 2 * selectedStrokeWidth}×${(template.viewLayer?.height || 0) + 2 * selectedStrokeWidth} | 模板: ${template.viewLayer?.width || 0}×${template.viewLayer?.height || 0}`
+                      : `模板: ${template.viewLayer?.width || 0}×${template.viewLayer?.height || 0}`
+                    }
+                  </div>
                 </div>
+
+                {/* 说明文字 */}
+                {selectedStrokeWidth && selectedStrokeWidth > 0 && (
+                  <div className="mt-3 text-sm text-gray-600">
+                    <p>• 淡色背景：外扩裁切结果（生成时使用）</p>
+                    <p>• 蓝框区域：模板尺寸裁切结果（用于对比）</p>
+                  </div>
+                )}
               </div>
 
               {/* 部件预览 */}
@@ -1055,7 +1192,7 @@ export const UseModal: React.FC<UseModalProps> = ({
                       const tplW = template.viewLayer?.width;
                       const tplH = template.viewLayer?.height;
                       const nonForceTarget = editedSize || cutPreviewSize || originalImageSize;
-                      const decided = (forceResize && tplW && tplH)
+                      const decided = (tplW && tplH)
                         ? { width: tplW, height: tplH }
                         : (nonForceTarget ? { width: Math.round(nonForceTarget.width), height: Math.round(nonForceTarget.height) } : null);
                       const sizeText = decided ? `｜${decided.width} × ${decided.height} px` : '';

@@ -6,18 +6,25 @@ PSD处理核心模块
 整合psd_replacer和transform_template_final的功能
 """
 
+# 标准库导入
 import sys
 import os
 import json
 import shutil
 import time
-from pathlib import Path
-from datetime import datetime
 import tempfile
 import struct
-from PIL import Image, ImageDraw
+import io
+import glob
+import traceback
+from pathlib import Path
+from datetime import datetime
 
-# 导入内部backend模块
+# 第三方库导入
+from PIL import Image, ImageFilter
+from psd_tools import PSDImage
+
+# 本地模块导入
 from integrated_processor import IntegratedProcessor
 from transformer_inside import InsideTransformer
 from psd_cropper import PSDCropper
@@ -26,7 +33,6 @@ from psd_transformer import BinaryPSDTransformer
 from psd_replacer import PSDReplacer
 from psd_scaler import PSDScaler
 from png_stroke_processor import PNGStrokeProcessor
-from psd_tools import PSDImage
 from utils.strings import sanitize_name
 from config import get_storage_root
 
@@ -300,15 +306,12 @@ class PSDProcessorCore:
             
         except Exception as e:
             print(f"Preview generation failed: {e}")
-            import traceback
             print(traceback.format_exc())
             return False, str(e)
     
     def _generate_restored_psd(self, psd_path, template_id):
         """对原始PSD进行逆展开变换和裁剪，生成b.psd"""
         try:
-            import sys
-            import tempfile
             
             print(f"Starting restored PSD generation, template ID: {template_id}", flush=True, file=sys.stderr)
             
@@ -324,7 +327,6 @@ class PSDProcessorCore:
 
             if not transform_success:
                 # 清理临时文件
-                import shutil
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 raise Exception("InsideTransformer failed")
 
@@ -334,7 +336,6 @@ class PSDProcessorCore:
             crop_success = cropper.crop_by_view(str(temp_transformed_path), str(restored_path))
             
             # 清理临时文件
-            import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
             
             if not crop_success:
@@ -345,7 +346,6 @@ class PSDProcessorCore:
 
         except Exception as e:
             print(f"Restored PSD generation failed: {e}")
-            import traceback
             print(traceback.format_exc())
             return False, str(e)
 
@@ -422,7 +422,6 @@ class PSDProcessorCore:
 
         except Exception as e:
             print(f"[ERROR] 多stroke版本生成失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(traceback.format_exc(), flush=True, file=sys.stderr)
             return False, str(e)
 
@@ -444,6 +443,7 @@ class PSDProcessorCore:
             # 使用临时目录确保自动清理
             with tempfile.TemporaryDirectory(prefix=f"stroke_{stroke_width}px_") as temp_base:
                 layers_dir = Path(temp_base) / "extracted"
+                expanded_dir = Path(temp_base) / "expanded"
                 stroked_dir = Path(temp_base) / "stroked"
 
                 # 步骤1: 提取PNG图层
@@ -454,8 +454,21 @@ class PSDProcessorCore:
                 if not extract_success:
                     return False, f"PNG图层提取失败"
 
-                # 步骤2: 对part图层进行描边处理
-                print(f"  [STEP2] 描边part图层 (宽度: {stroke_width}px)...", flush=True, file=sys.stderr)
+                # 步骤2: 画布外扩（中心锚点）：为每个PNG四面各扩 {stroke_width}px
+                print(f"  [STEP2] 画布外扩 (四面各 {stroke_width}px)...", flush=True, file=sys.stderr)
+                expanded_dir.mkdir(exist_ok=True)
+                src_pngs = glob.glob(str(layers_dir / "*.png"))
+                for p in src_pngs:
+                    im = Image.open(p).convert('RGBA')
+                    w, h = im.size
+                    new_w, new_h = w + 2*int(stroke_width), h + 2*int(stroke_width)
+                    canvas = Image.new('RGBA', (new_w, new_h), (0, 0, 0, 0))
+                    canvas.paste(im, (int(stroke_width), int(stroke_width)))
+                    dst = Path(expanded_dir) / Path(p).name
+                    canvas.save(str(dst), 'PNG', optimize=True)
+
+                # 步骤3: 对part图层进行描边处理（基于扩展后的PNG）
+                print(f"  [STEP3] 描边part图层 (宽度: {stroke_width}px)...", flush=True, file=sys.stderr)
                 stroked_dir.mkdir(exist_ok=True)
 
                 # 创建描边处理器
@@ -466,8 +479,7 @@ class PSDProcessorCore:
                 )
 
                 # 处理每个图层
-                import glob
-                png_files = glob.glob(str(layers_dir / "*.png"))
+                png_files = glob.glob(str(expanded_dir / "*.png"))
                 part_count = 0
 
                 for png_file in png_files:
@@ -486,14 +498,14 @@ class PSDProcessorCore:
                             print(f"    ❌ 描边失败 {layer_name}: {e}", flush=True, file=sys.stderr)
                             return False, f"图层描边失败: {layer_name}"
                     else:
-                        # view图层等直接复制
+                        # 非part图层（含view）直接复制扩展后的PNG
                         shutil.copy2(png_file, output_path)
                         print(f"    ✓ 复制图层: {layer_name}", flush=True, file=sys.stderr)
 
-                print(f"  [STEP2] 描边处理完成，part图层数: {part_count}", flush=True, file=sys.stderr)
+                print(f"  [STEP3] 描边处理完成，part图层数: {part_count}", flush=True, file=sys.stderr)
 
-                # 步骤3: 重组为PSD
-                print(f"  [STEP3] 重组PSD...", flush=True, file=sys.stderr)
+                # 步骤4: 重组为PSD
+                print(f"  [STEP4] 重组PSD...", flush=True, file=sys.stderr)
                 create_success = scaler.create_psd_from_dir(str(stroked_dir), str(stroke_psd_path))
 
                 if not create_success:
@@ -504,7 +516,6 @@ class PSDProcessorCore:
 
         except Exception as e:
             print(f"  [ERROR] 单个stroke版本生成失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(traceback.format_exc(), flush=True, file=sys.stderr)
             return False, str(e)
 
@@ -534,7 +545,6 @@ class PSDProcessorCore:
             new_width = right - left
             new_height = bottom - top
             
-            import sys
             print(f"  Trim前尺寸: {psd.width}×{psd.height}", flush=True, file=sys.stderr)
             print(f"  Trim边界: left={left}, top={top}, right={right}, bottom={bottom}", flush=True, file=sys.stderr)
             print(f"  Trim后尺寸: {new_width}×{new_height}", flush=True, file=sys.stderr)
@@ -549,7 +559,6 @@ class PSDProcessorCore:
             
         except Exception as e:
             print(f"  Trim透明边缘失败: {e}")
-            import traceback
             print(f"  Trim错误详情: {traceback.format_exc()}")
             # 不抛出异常，因为这不是关键功能
     
@@ -569,11 +578,9 @@ class PSDProcessorCore:
             # 创建新的PSD文件，只包含裁剪后的图像
             self._save_cropped_psd(cropped_composite, psd_path, new_width, new_height)
                 
-            import sys
             print(f"  Trim完成，新尺寸: {new_width}×{new_height}", flush=True, file=sys.stderr)
             
             # 验证保存结果
-            import sys
             try:
                 test_psd = PSDImage.open(psd_path)
                 print(f"  验证保存结果: {test_psd.width}×{test_psd.height}", flush=True, file=sys.stderr)
@@ -581,16 +588,12 @@ class PSDProcessorCore:
                 print(f"  验证失败: {ve}", flush=True, file=sys.stderr)
             
         except Exception as e:
-            import sys
             print(f"  创建裁剪PSD失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"  裁剪错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
 
     def _save_cropped_psd(self, cropped_image, psd_path, width, height):
         """保存裁剪后的图像为PSD格式"""
         try:
-            import struct
-            import io
             
             # 将裁剪后的图像转换为RGBA
             if cropped_image.mode != 'RGBA':
@@ -662,7 +665,6 @@ class PSDProcessorCore:
         与“stroke参考图”保持一致逻辑，唯一差异在于传入的PSD路径（原始inside或stroke版inside）。
         """
         try:
-            from PIL import ImageFilter
             psd = PSDImage.open(psd_path)
             canvas_width, canvas_height = psd.width, psd.height
 
@@ -952,7 +954,7 @@ class PSDProcessorCore:
             
             # 步骤2: 使用transform_template_final进行最终变换 result.psd -> final.psd
             final_success, final_path = self._apply_final_transform(
-                result_path, result_id
+                result_path, result_id, used_stroke_width
             )
             
             if not final_success:
@@ -1008,7 +1010,6 @@ class PSDProcessorCore:
 
         except Exception as e:
             print(f"生成最终PSD失败: {e}")
-            import traceback
             print(traceback.format_exc())
 
             # 出错时也要清理临时文件
@@ -1019,8 +1020,6 @@ class PSDProcessorCore:
     def _apply_psd_replacer(self, template_psd_path, image_path, result_id):
         """使用内置PSD替换器进行图片替换"""
         try:
-            import sys
-            import os
             print(f"开始PSD替换，模板: {template_psd_path}, 图片: {image_path}", flush=True, file=sys.stderr)
             
             # 检查输入文件是否存在
@@ -1049,9 +1048,7 @@ class PSDProcessorCore:
                 return False, "替换结果文件未生成"
             
         except Exception as e:
-            import sys
             print(f"PSD替换失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"PSD替换错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return False, str(e)
     
@@ -1062,10 +1059,6 @@ class PSDProcessorCore:
             force_resize: 强制将图片调整到模板尺寸，无视面积大小
             result_id: 用于命名临时文件的结果ID，便于调试与避免冲突
         """
-        from PIL import Image
-        from psd_tools import PSDImage
-        import tempfile
-        import sys
         
         print("📐 智能尺寸对齐开始", flush=True, file=sys.stderr)
         
@@ -1177,9 +1170,6 @@ class PSDProcessorCore:
     def _resize_psd_with_internal_module(self, template_psd_path, target_width, target_height):
         """使用内部PSD调整模块生成调整尺寸的PSD文件"""
         try:
-            import tempfile
-            import sys
-            import os
             
             print(f"  [CONFIG] 调用内部PSD调整器: {target_width} × {target_height}", flush=True, file=sys.stderr)
             
@@ -1216,7 +1206,6 @@ class PSDProcessorCore:
             
             # 验证生成的PSD文件
             try:
-                from psd_tools import PSDImage
                 test_psd = PSDImage.open(temp_output_path)
                 print(f"  [SUCCESS] 验证成功: {test_psd.width}×{test_psd.height}, 图层数: {len(list(test_psd))}", flush=True, file=sys.stderr)
 
@@ -1235,19 +1224,14 @@ class PSDProcessorCore:
             return temp_output_path
             
         except Exception as e:
-            import sys
             print(f"  [ERROR] PSD调整失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"  错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return None
 
     def _create_resized_psd(self, template_psd, target_width, target_height):
         """创建调整尺寸后的真实PSD文件，保留完整图层结构"""
         try:
-            import tempfile
-            import sys
-            from PIL import Image
-            
+                
             print(f"  [CONFIG] 生成调整尺寸的PSD: {target_width} × {target_height}", flush=True, file=sys.stderr)
             
             # 计算缩放比例
@@ -1305,8 +1289,7 @@ class PSDProcessorCore:
                 temp_psd_path = temp_file.name
             
             # 验证生成的PSD文件
-            from psd_tools import PSDImage
-            test_psd = PSDImage.open(temp_psd_path)
+                test_psd = PSDImage.open(temp_psd_path)
             print(f"  [SUCCESS] 验证PSD文件: {test_psd.width}×{test_psd.height}, 图层数: {len(list(test_psd))}", flush=True, file=sys.stderr)
             
             # 验证part图层是否存在
@@ -1320,16 +1303,12 @@ class PSDProcessorCore:
             return temp_psd_path
             
         except Exception as e:
-            import sys
             print(f"  [ERROR] 生成调整尺寸PSD失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"  错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return None
 
     def _create_real_psd_data(self, canvas_image, width, height):
         """创建真实的PSD文件二进制数据"""
-        import struct
-        import io
         
         # 确保图像是RGBA模式
         if canvas_image.mode != 'RGBA':
@@ -1385,8 +1364,6 @@ class PSDProcessorCore:
 
     def _create_layered_psd_data(self, layers, width, height):
         """创建带完整图层结构的PSD文件二进制数据"""
-        import struct
-        import io
         
         print(f"    创建带图层的PSD数据: {width}×{height}, 图层数: {len(layers)}", flush=True, file=sys.stderr)
         
@@ -1542,9 +1519,6 @@ class PSDProcessorCore:
     def _replace_psd_internal(self, template_psd_path, image_path, output_path):
         """使用原始PSD替换逻辑"""
         try:
-            import sys
-            import os
-            from psd_replacer import PSDReplacer
             print("=" * 60, flush=True, file=sys.stderr)
             print("[TARGET] 使用原始PSD替换逻辑", flush=True, file=sys.stderr)
             print(f"  模板: {template_psd_path}", flush=True, file=sys.stderr)
@@ -1563,9 +1537,7 @@ class PSDProcessorCore:
             return True
             
         except Exception as e:
-            import sys
             print(f"[ERROR] PSD替换失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"[ERROR] 错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return False
 
@@ -1574,10 +1546,7 @@ class PSDProcessorCore:
         如果提供 output_path，则写入该路径，否则创建临时文件返回路径。
         """
         try:
-            from PIL import Image
-            import tempfile
-            import sys
-            
+                
             print(f"  [CONFIG] 强制调整图片尺寸: -> {template_width}×{template_height}", flush=True, file=sys.stderr)
             
             # 加载图片
@@ -1613,8 +1582,6 @@ class PSDProcessorCore:
     def _full_scale_psd_internal(self, psd_path, width, height, output_path):
         """完整的PSD缩放流程，使用内部PSD缩放模块"""
         try:
-            import sys
-            from psd_scaler import PSDScaler
             
             print(f"[START] 内部PSD缩放开始:", flush=True, file=sys.stderr)
             print(f"   输入: {psd_path}", flush=True, file=sys.stderr)
@@ -1643,9 +1610,7 @@ class PSDProcessorCore:
                 return False
                 
         except Exception as e:
-            import sys
             print(f"[ERROR] PSD缩放异常: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"[ERROR] 详细错误: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return False
 
@@ -1656,11 +1621,7 @@ class PSDProcessorCore:
     def _create_scaled_psd(self, template_psd_path, target_width, target_height):
         """生成缩放后的PSD文件"""
         try:
-            from PIL import Image
-            from psd_tools import PSDImage
-            import tempfile
-            import sys
-            
+                    
             print(f"  [DOCUMENT] 生成缩放PSD: {target_width} × {target_height}", flush=True, file=sys.stderr)
             
             # 加载原始PSD
@@ -1719,10 +1680,9 @@ class PSDProcessorCore:
             print(f"[ERROR] 生成缩放PSD失败: {e}", flush=True, file=sys.stderr)
             return None
     
-    def _apply_final_transform(self, result_psd_path, result_id):
+    def _apply_final_transform(self, result_psd_path, result_id, stroke_width=None):
         """应用最终变换"""
         try:
-            import sys
             print(f"开始最终变换，输入文件: {result_psd_path}", flush=True, file=sys.stderr)
             
             # 检查输入文件是否存在
@@ -1735,7 +1695,7 @@ class PSDProcessorCore:
             print(f"输出文件路径: {final_path}", flush=True, file=sys.stderr)
             
             # 使用transform_template_final进行最终变换
-            transformer = BinaryPSDTransformer(result_psd_path, str(final_path))
+            transformer = BinaryPSDTransformer(result_psd_path, str(final_path), stroke_width)
             transformer.transform()
             
             # 验证输出文件是否生成成功
@@ -1748,16 +1708,13 @@ class PSDProcessorCore:
                 return False, "输出文件未生成"
             
         except Exception as e:
-            import sys
             print(f"最终变换失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"最终变换错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return False, str(e)
     
     def _generate_final_preview(self, final_psd_path, result_id):
         """生成最终PSD的预览图"""
         try:
-            import sys
             print(f"开始生成最终预览图，PSD路径: {final_psd_path}", flush=True, file=sys.stderr)
             
             preview_filename = f"{result_id}_final_preview.png"
@@ -1773,7 +1730,6 @@ class PSDProcessorCore:
             psd = PSDImage.open(final_psd_path)
             print(f"PSD尺寸: {psd.width}×{psd.height}", flush=True, file=sys.stderr)
 
-            from PIL import Image
             canvas = Image.new('RGBA', (psd.width, psd.height), (0, 0, 0, 0))
             layer_count = 0
             hidden_view = False
@@ -1823,9 +1779,7 @@ class PSDProcessorCore:
             return True, str(preview_path)
             
         except Exception as e:
-            import sys
             print(f"生成最终预览图失败: {e}", flush=True, file=sys.stderr)
-            import traceback
             print(f"预览图生成错误详情: {traceback.format_exc()}", flush=True, file=sys.stderr)
             return False, str(e)
     
@@ -1934,8 +1888,7 @@ class PSDProcessorCore:
                 return False, "只支持PNG格式文件"
             
             # 检查文件内容
-            from PIL import Image
-            image = Image.open(file)
+                image = Image.open(file)
             
             # 检查尺寸是否与view图层一致
             view_layer = template.get('viewLayer')
@@ -1997,8 +1950,7 @@ class PSDProcessorCore:
                 f.write(file.read())
             
             # 获取文件信息
-            from PIL import Image
-            file.seek(0)
+                file.seek(0)
             image = Image.open(file)
             file_size = component_path.stat().st_size
             
@@ -2124,10 +2076,7 @@ class PSDProcessorCore:
             print(f"添加window图层: 部件={component_path.name}, 位置=({view_left}, {view_top})")
 
             # 打开final.psd，准备重建带新增图层的PSD
-            from psd_tools import PSDImage
-            from PIL import Image
-            import shutil
-
+        
             psd = PSDImage.open(str(final_psd_path))
 
             canvas_w, canvas_h = psd.width, psd.height
@@ -2234,7 +2183,6 @@ class PSDProcessorCore:
             
         except Exception as e:
             print(f"添加window图层失败: {e}")
-            import traceback
             print(traceback.format_exc())
             
             # 异常时也要清理可能存在的临时文件
