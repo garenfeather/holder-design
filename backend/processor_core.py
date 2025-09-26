@@ -44,7 +44,7 @@ class PSDProcessorCore:
         storage_root = get_storage_root()
         self.templates_dir = storage_root / "templates"
         self.inside_dir = storage_root / "inside"  # 原始 inside（restored.psd）
-        self.inside_stroke_dir = storage_root / "inside_stroke"  # 新：存放 stroke 版本 PSD
+        self.inside_stroke_v2_dir = storage_root / "inside_stroke_v2"  # 新：存放 v2 stroke 版本 PSD
         self.previews_dir = storage_root / "previews"
         self.references_dir = storage_root / "references"
         self.components_dir = storage_root / "components"
@@ -145,7 +145,7 @@ class PSDProcessorCore:
         """确保存储目录存在"""
         self.templates_dir.mkdir(parents=True, exist_ok=True)
         self.inside_dir.mkdir(parents=True, exist_ok=True)
-        self.inside_stroke_dir.mkdir(parents=True, exist_ok=True)
+        self.inside_stroke_v2_dir.mkdir(parents=True, exist_ok=True)
         self.previews_dir.mkdir(parents=True, exist_ok=True)
         self.references_dir.mkdir(parents=True, exist_ok=True)
         self.components_dir.mkdir(parents=True, exist_ok=True)
@@ -438,7 +438,7 @@ class PSDProcessorCore:
         """
         try:
             stroke_filename = f"{template_id}_stroke_{stroke_width}px.psd"
-            stroke_psd_path = self.inside_stroke_dir / stroke_filename
+            stroke_psd_path = self.inside_stroke_v2_dir / stroke_filename
 
             # 使用临时目录确保自动清理
             with tempfile.TemporaryDirectory(prefix=f"stroke_{stroke_width}px_") as temp_base:
@@ -727,7 +727,7 @@ class PSDProcessorCore:
     def _generate_stroke_reference_image(self, template_id, stroke_width):
         """生成 stroke 参考图：逻辑与原参考图一致，但输入为 stroke 版 inside PSD。"""
         try:
-            stroke_psd = self.inside_stroke_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
+            stroke_psd = self.inside_stroke_v2_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
             if not stroke_psd.exists():
                 return False, f"找不到stroke PSD: {stroke_psd.name}"
             return self._render_reference_from_psd(stroke_psd, f"{template_id}_stroke_{int(stroke_width)}px_reference.png")
@@ -748,7 +748,7 @@ class PSDProcessorCore:
                 if candidate.exists():
                     return True, filename
         # 没有则生成：若缺失stroke版PSD，先按需生成
-        stroke_psd = self.inside_stroke_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
+        stroke_psd = self.inside_stroke_v2_dir / f"{template_id}_stroke_{int(stroke_width)}px.psd"
         if not stroke_psd.exists():
             source_psd = self.get_restored_psd_path(template_id)
             if not source_psd or not source_psd.exists():
@@ -920,7 +920,7 @@ class PSDProcessorCore:
                 candidate_name = versions.get(sw) or versions.get(str(sw))
                 if not candidate_name:
                     return False, "未配置该stroke版本"
-                p = self.inside_stroke_dir / candidate_name
+                p = self.inside_stroke_v2_dir / candidate_name
                 if not p.exists():
                     return False, "所选stroke版本文件不存在"
                 selected_psd_path = p
@@ -1826,7 +1826,7 @@ class PSDProcessorCore:
             stroke_versions = template_to_delete.get('strokeVersions') or {}
             for k, fname in list(stroke_versions.items()):
                 try:
-                    fpath = self.inside_stroke_dir / fname
+                    fpath = self.inside_stroke_v2_dir / fname
                     if fpath.exists():
                         fpath.unlink()
                 except Exception as e:
