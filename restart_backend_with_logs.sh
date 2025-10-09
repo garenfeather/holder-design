@@ -2,6 +2,9 @@
 
 # 重启后端并持续监控日志的脚本
 
+# 加载系统环境
+source /etc/profile
+
 # 设置UTF-8编码环境
 export PYTHONIOENCODING=utf-8
 export LC_ALL=C.UTF-8

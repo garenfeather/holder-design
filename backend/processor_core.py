@@ -1888,7 +1888,7 @@ class PSDProcessorCore:
                 return False, "只支持PNG格式文件"
             
             # 检查文件内容
-                image = Image.open(file)
+            image = Image.open(file)
             
             # 检查尺寸是否与view图层一致
             view_layer = template.get('viewLayer')
@@ -1948,9 +1948,9 @@ class PSDProcessorCore:
             file.seek(0)
             with open(component_path, 'wb') as f:
                 f.write(file.read())
-            
+
             # 获取文件信息
-                file.seek(0)
+            file.seek(0)
             image = Image.open(file)
             file_size = component_path.stat().st_size
             

@@ -15,7 +15,7 @@ PSD模板图片替换器
 """
 
 from psd_tools import PSDImage
-from PIL import Image
+from PIL import Image, ImageOps
 import struct
 import io
 from pathlib import Path
@@ -94,10 +94,14 @@ class PSDReplacer:
             if self.source_image.mode != 'RGBA':
                 self.source_image = self.source_image.convert('RGBA')
             print(f"  源图片: {self.source_image.size[0]}×{self.source_image.size[1]} px")
+
+            # 对用户上传的图片进行左右翻转
+            self.source_image = ImageOps.mirror(self.source_image)
+            print(f"  ✓ 已对源图片进行左右翻转")
         except Exception as e:
             print(f"[ERROR] 加载源图片失败: {e}")
             return False
-        
+
         # 验证尺寸匹配
         if (self.template.width, self.template.height) != self.source_image.size:
             print(f"[ERROR] 尺寸不匹配: 模板{self.template.width}×{self.template.height} vs 图片{self.source_image.size[0]}×{self.source_image.size[1]}")
