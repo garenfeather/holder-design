@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Download, Trash2, ImageIcon, FileIcon, AlertCircle } from 'lucide-react';
 import { Result, ResultDetail } from '../types/index.ts';
 import { apiService, API_BASE_URL } from '../services/api.ts';
+import { ConfirmDialog } from './ConfirmDialog.tsx';
 
 interface ResultDetailModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
   const [info, setInfo] = useState<ResultDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !result) {
@@ -48,8 +50,27 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
 
   const download = async () => {
     if (!result) return;
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmDownload = async (deleteAfter: boolean) => {
+    setShowConfirmDialog(false);
+    if (!result) return;
+
     try {
+      // 执行下载
       await apiService.downloadFile(result.id, `${result.templateName}_${result.id}.psd`);
+
+      // 如果用户选择删除，且下载成功，则执行删除
+      if (deleteAfter) {
+        const deleteRes = await apiService.deleteResult(result.id);
+        if (deleteRes.success) {
+          onDeleted?.(result.id);
+          onClose();
+        } else {
+          setError(deleteRes.error || '删除失败，但文件已下载');
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '下载失败');
     }
@@ -160,6 +181,17 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* 下载确认对话框 */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        title="下载确认"
+        message="下载完成后是否删除该结果？"
+        confirmText="下载后删除"
+        cancelText="仅下载"
+        onConfirm={() => handleConfirmDownload(true)}
+        onCancel={() => handleConfirmDownload(false)}
+      />
     </div>
   );
 };
