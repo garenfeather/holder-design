@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Check, RotateCcw, Download, Eye, EyeOff, Crop, ZoomIn, ZoomOut, RotateCw, Package } from 'lucide-react';
 import { Template, GenerateResult, Component } from '../types/index.ts';
 import { apiService, API_BASE_URL } from '../services/api.ts';
+import { ConfirmDialog } from './ConfirmDialog.tsx';
 
 interface UseModalProps {
   isOpen: boolean;
@@ -60,6 +61,7 @@ export const UseModal: React.FC<UseModalProps> = ({
   const [componentsLoading, setComponentsLoading] = useState(false);
   // 组件选择区域宽度，严格贴合预览宽度
   const [componentSelectWidth, setComponentSelectWidth] = useState<number | null>(null);
+  const [showDownloadConfirmDialog, setShowDownloadConfirmDialog] = useState(false);
   const componentSectionRef = useRef<HTMLDivElement>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -578,15 +580,32 @@ export const UseModal: React.FC<UseModalProps> = ({
 
   const handleDownload = async () => {
     if (!generateResult || !selectedImage || !template) return;
-    
+    setShowDownloadConfirmDialog(true);
+  };
+
+  const handleConfirmDownload = async (deleteAfter: boolean) => {
+    setShowDownloadConfirmDialog(false);
+    if (!generateResult || !selectedImage || !template) return;
+
     try {
       // 生成组合文件名：用户图片名（不含扩展名）+ 模板名 + .psd
       const userImageName = selectedImage.name.replace(/\.[^/.]+$/, ''); // 去掉原始扩展名
       const templateName = template.name;
       const strokeSuffix = selectedStrokeWidth ? `_stroke_${selectedStrokeWidth}px` : '';
       const finalFileName = `${userImageName}_${templateName}${strokeSuffix}.psd`;
-      
+
       await apiService.downloadFile(generateResult.resultId, finalFileName);
+
+      // 如果用户选择删除，且下载成功，则执行删除
+      if (deleteAfter) {
+        const deleteRes = await apiService.deleteResult(generateResult.resultId);
+        if (deleteRes.success) {
+          // 删除成功，关闭弹窗
+          onClose();
+        } else {
+          alert(deleteRes.error || '删除失败，但文件已下载');
+        }
+      }
     } catch (error) {
       console.error('下载失败:', error);
       alert(error instanceof Error ? error.message : '下载失败，请重试');
@@ -1304,6 +1323,17 @@ export const UseModal: React.FC<UseModalProps> = ({
         {/* 隐藏的canvas用于图片处理 */}
         <canvas ref={canvasRef} className="hidden" />
       </div>
+
+      {/* 下载确认对话框 */}
+      <ConfirmDialog
+        isOpen={showDownloadConfirmDialog}
+        title="下载确认"
+        message="下载完成后是否删除该结果？"
+        confirmText="下载后删除"
+        cancelText="仅下载"
+        onConfirm={() => handleConfirmDownload(true)}
+        onCancel={() => handleConfirmDownload(false)}
+      />
     </div>
   );
 };
