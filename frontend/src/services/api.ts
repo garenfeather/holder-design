@@ -490,6 +490,228 @@ class ApiService {
       return { success: false, error: '网络错误' };
     }
   }
+
+  // ========== 刀模系统API ==========
+
+  // 通用GET方法
+  async get(url: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`);
+      if (response.ok) {
+        const result = await response.json();
+        return result.success ? { success: true, data: result.data, message: result.message } : { success: false, error: result.error, message: result.message };
+      }
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.error || '请求失败' };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // 通用POST方法
+  async post(url: string, data: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return { success: true, data: result.data, message: result.message };
+      }
+      return { success: false, error: result.error || '请求失败', message: result.message };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // 通用PUT方法
+  async put(url: string, data: any): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return { success: true, data: result.data, message: result.message };
+      }
+      return { success: false, error: result.error || '请求失败', message: result.message };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // 通用DELETE方法
+  async delete(url: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return { success: true, data: result.data, message: result.message };
+      }
+      return { success: false, error: result.error || '请求失败', message: result.message };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // 获取刀模元素列表
+  async getDieElements(): Promise<ApiResponse<any[]>> {
+    return this.get('/api/die-elements');
+  }
+
+  // 创建刀模元素
+  async createDieElement(data: {
+    name: string;
+    cutWidth: number;
+    cutHeight: number;
+    refWidth: number;
+    refHeight: number;
+  }): Promise<ApiResponse<any>> {
+    return this.post('/api/die-elements', data);
+  }
+
+  // 更新刀模元素
+  async updateDieElement(elementId: string, data: {
+    name?: string;
+    cutWidth?: number;
+    cutHeight?: number;
+    refWidth?: number;
+    refHeight?: number;
+  }): Promise<ApiResponse<any>> {
+    return this.put(`/api/die-elements/${elementId}`, data);
+  }
+
+  // 删除刀模元素
+  async deleteDieElement(elementId: string): Promise<ApiResponse<any>> {
+    return this.delete(`/api/die-elements/${elementId}`);
+  }
+
+  // 生成刀模素材（上传图片）
+  async generateDieMaterial(elementId: string, imageFile: File): Promise<ApiResponse<any>> {
+    try {
+      const formData = new FormData();
+      formData.append('image', imageFile);
+
+      const response = await fetch(`${API_BASE_URL}/api/die-elements/${elementId}/generate`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return { success: true, data: result.data };
+      }
+      return { success: false, error: result.error || '生成刀模素材失败' };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // 获取刀模素材列表（可选分组）
+  async getDieMaterials(options?: { elementId?: string; grouped?: boolean }): Promise<ApiResponse<any>> {
+    try {
+      const params = new URLSearchParams();
+      if (options?.elementId) params.append('elementId', options.elementId);
+      if (options?.grouped) params.append('grouped', 'true');
+
+      const url = `${API_BASE_URL}/api/die-materials${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await fetch(url);
+
+      if (response.ok) {
+        const result = await response.json();
+        return result.success ? { success: true, data: result.data } : { success: false, error: result.error };
+      }
+      return { success: false, error: '获取刀模素材列表失败' };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // 获取刀模素材文件URL
+  getDieMaterialUrl(materialId: string): string {
+    return `${API_BASE_URL}/api/die-materials/${materialId}`;
+  }
+
+  // 删除刀模素材
+  async deleteDieMaterial(materialId: string): Promise<ApiResponse<any>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/die-materials/${materialId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return { success: true, data: result };
+      }
+      return { success: false, error: result.error || '删除刀模素材失败' };
+    } catch (e) {
+      return { success: false, error: '网络错误' };
+    }
+  }
+
+  // ========== 布局模版API ==========
+
+  // 创建布局模版
+  async createLayoutTemplate(data: {
+    name: string;
+    paperSize: string;
+    paperOrientation: string;
+    elements: any[];
+    previewImage?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.post('/api/layout-templates', data);
+  }
+
+  // 获取所有布局模版
+  async getLayoutTemplates(): Promise<ApiResponse<any[]>> {
+    return this.get('/api/layout-templates');
+  }
+
+  // 获取单个布局模版
+  async getLayoutTemplate(templateId: string): Promise<ApiResponse<any>> {
+    return this.get(`/api/layout-templates/${templateId}`);
+  }
+
+  // 删除布局模版
+  async deleteLayoutTemplate(templateId: string): Promise<ApiResponse<any>> {
+    return this.delete(`/api/layout-templates/${templateId}`);
+  }
+
+  // ========== 打印素材API ==========
+
+  // 创建打印素材（生成PDF）
+  async createPrintMaterial(data: {
+    name: string;
+    templateId: string;
+    materialMappings: any[];
+  }): Promise<ApiResponse<any>> {
+    return this.post('/api/print-materials', data);
+  }
+
+  // 获取所有打印素材
+  async getPrintMaterials(): Promise<ApiResponse<any[]>> {
+    return this.get('/api/print-materials');
+  }
+
+  // 获取单个打印素材
+  async getPrintMaterial(materialId: string): Promise<ApiResponse<any>> {
+    return this.get(`/api/print-materials/${materialId}`);
+  }
+
+  // 下载打印素材PDF
+  getPrintMaterialPdfUrl(materialId: string): string {
+    return `${API_BASE_URL}/api/print-materials/${materialId}/pdf`;
+  }
+
+  // 删除打印素材
+  async deletePrintMaterial(materialId: string): Promise<ApiResponse<any>> {
+    return this.delete(`/api/print-materials/${materialId}`);
+  }
 }
 
 export const apiService = new ApiService();

@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  onClose?: () => void;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -18,7 +19,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmText = '确定',
   cancelText = '取消',
   onConfirm,
-  onCancel
+  onCancel,
+  onClose
 }) => {
   if (!isOpen) return null;
 
@@ -27,7 +29,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
         {/* 关闭按钮 */}
         <button
-          onClick={onCancel}
+          onClick={onClose || onCancel}
           className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-full transition-colors"
         >
           <X className="w-5 h-5 text-gray-500" />

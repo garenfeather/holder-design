@@ -1,0 +1,96 @@
+[
+  {
+    "id": "tpl_1760044598842",
+    "name": "test-full",
+    "fileName": "test-full.psd",
+    "originalFileName": "test-full.psd",
+    "savedFileName": "tpl_1760044598842.psd",
+    "restoredFileName": "tpl_1760044598842_restored.psd",
+    "previewImage": "tpl_1760044598842_preview.png",
+    "referenceImage": "tpl_1760044598842_reference.png",
+    "size": 968006,
+    "uploadedAt": "2025-10-10T05:16:46.308660",
+    "status": "ready",
+    "dimensions": {
+      "width": 2517,
+      "height": 2904
+    },
+    "layers": [
+      "view",
+      "part1",
+      "part2",
+      "part3",
+      "part4"
+    ],
+    "viewLayer": {
+      "width": 1945,
+      "height": 878,
+      "left": 282,
+      "top": 974,
+      "right": 2227,
+      "bottom": 1852
+    },
+    "strokeVersions": {},
+    "strokeConfig": [],
+    "strokeReferences": {},
+    "components": []
+  },
+  {
+    "id": "tpl_1758873980572",
+    "name": "test-real",
+    "fileName": "test-real.psd",
+    "originalFileName": "test-real.psd",
+    "savedFileName": "tpl_1758873980572.psd",
+    "restoredFileName": "tpl_1758873980572_restored.psd",
+    "previewImage": "tpl_1758873980572_preview.png",
+    "referenceImage": "tpl_1758873980572_reference.png",
+    "size": 976696,
+    "uploadedAt": "2025-09-26T16:06:36.952712",
+    "status": "ready",
+    "dimensions": {
+      "width": 3508,
+      "height": 2480
+    },
+    "layers": [
+      "view",
+      "part1",
+      "part2",
+      "part3",
+      "part4"
+    ],
+    "viewLayer": {
+      "width": 1945,
+      "height": 878,
+      "left": 888,
+      "top": 586,
+      "right": 2833,
+      "bottom": 1464
+    },
+    "strokeVersions": {
+      "8": "tpl_1758873980572_stroke_8px.psd",
+      "10": "tpl_1758873980572_stroke_10px.psd"
+    },
+    "strokeConfig": [
+      8,
+      10
+    ],
+    "strokeReferences": {
+      "8": "tpl_1758873980572_stroke_8px_reference.png",
+      "10": "tpl_1758873980572_stroke_10px_reference.png"
+    },
+    "components": [
+      {
+        "id": "comp_1759840527152",
+        "name": "left",
+        "fileName": "tpl_1758873980572_comp_1759840527152.png",
+        "originalName": "left.png",
+        "uploadedAt": "2025-10-07T20:35:27.153367",
+        "size": 10263,
+        "dimensions": {
+          "width": 1945,
+          "height": 878
+        }
+      }
+    ]
+  }
+]

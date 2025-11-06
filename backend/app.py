@@ -22,6 +22,9 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from config import CONFIG, settings, processing_config
 from processor_core import processor_core
+from die_manager import die_manager
+from layout_template_manager import LayoutTemplateManager
+from print_material_generator import PrintMaterialGenerator
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
@@ -754,7 +757,7 @@ def delete_component(template_id, component_id):
     """删除部件"""
     try:
         success, result = processor_core.delete_component(template_id, component_id)
-        
+
         if success:
             return jsonify({
                 'success': True,
@@ -762,10 +765,460 @@ def delete_component(template_id, component_id):
             })
         else:
             return json_error(result, 400)
-            
+
     except Exception as e:
         print(f"删除部件时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
+
+
+# ========== 刀模系统API ==========
+
+@app.route('/api/die-elements', methods=['GET'])
+def get_die_elements():
+    """获取所有刀模元素"""
+    try:
+        elements = die_manager.get_elements()
+        return jsonify({
+            'success': True,
+            'data': elements
+        })
+    except Exception as e:
+        print(f"获取刀模元素列表时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-elements', methods=['POST'])
+def create_die_element():
+    """创建刀模元素"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return json_error('缺少请求数据', 400)
+
+        # 验证必需字段
+        if 'name' not in data:
+            return json_error('缺少元素名称', 400)
+        if 'cutSize' not in data:
+            return json_error('缺少裁切尺寸', 400)
+        if 'referenceSize' not in data:
+            return json_error('缺少参考尺寸', 400)
+
+        # 验证尺寸格式
+        cut_size = data['cutSize']
+        reference_size = data['referenceSize']
+
+        if 'width' not in cut_size or 'height' not in cut_size:
+            return json_error('裁切尺寸格式错误', 400)
+        if 'width' not in reference_size or 'height' not in reference_size:
+            return json_error('参考尺寸格式错误', 400)
+
+        # 创建元素
+        element = die_manager.create_element(
+            name=data['name'],
+            cut_size=cut_size,
+            reference_size=reference_size
+        )
+
+        return jsonify({
+            'success': True,
+            'data': element
+        })
+
+    except Exception as e:
+        print(f"创建刀模元素时出错: {str(e)}")
+        print(traceback.format_exc())
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-elements/<element_id>', methods=['PUT'])
+def update_die_element(element_id):
+    """更新刀模元素"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return json_error('缺少请求数据', 400)
+
+        # 更新元素
+        element = die_manager.update_element(
+            element_id=element_id,
+            name=data.get('name'),
+            cut_size=data.get('cutSize'),
+            reference_size=data.get('referenceSize')
+        )
+
+        if not element:
+            return json_error('元素不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'data': element
+        })
+
+    except Exception as e:
+        print(f"更新刀模元素时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-elements/<element_id>', methods=['DELETE'])
+def delete_die_element(element_id):
+    """删除刀模元素"""
+    try:
+        success = die_manager.delete_element(element_id)
+
+        if not success:
+            return json_error('元素不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'message': '元素删除成功'
+        })
+
+    except Exception as e:
+        print(f"删除刀模元素时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-elements/<element_id>/generate', methods=['POST'])
+def generate_die_material(element_id):
+    """生成刀模素材（上传图片并裁切）"""
+    try:
+        # 检查元素是否存在
+        element = die_manager.get_element(element_id)
+        if not element:
+            return json_error('元素不存在', 404)
+
+        # 检查是否有上传的图片
+        if 'image' not in request.files:
+            return json_error('缺少图片文件', 400)
+
+        image_file = request.files['image']
+        if image_file.filename == '':
+            return json_error('未选择文件', 400)
+
+        # TODO: 实现图片裁切逻辑（阶段2）
+        rotation_angle = float(request.form.get('rotationAngle', 0))
+        # 保存上传的图片到临时文件
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+            image_file.save(temp_file.name)
+            temp_image_path = Path(temp_file.name)
+
+        try:
+            import uuid
+            file_name = f"{uuid.uuid4()}.png"
+            file_relative_path = f"materials/{element_id}/{file_name}"
+
+            # 添加素材记录并处理图片
+            material = die_manager.add_material(
+                element_id=element_id,
+                file_name=file_name,
+                file_path=file_relative_path,
+                temp_image_path=temp_image_path,
+                rotation_angle=rotation_angle
+            )
+
+            if not material:
+                return json_error('生成刀模素材失败', 500)
+
+            return jsonify({
+                'success': True,
+                'data': material
+            })
+
+        finally:
+            # 清理临时文件
+            if temp_image_path.exists():
+                os.unlink(temp_image_path)
+
+    except Exception as e:
+        print(f"生成刀模素材时出错: {str(e)}")
+        print(traceback.format_exc())
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-materials', methods=['GET'])
+def get_die_materials():
+    """获取刀模素材（可选按元素分组）"""
+    try:
+        # 检查是否需要分组
+        grouped = request.args.get('grouped', 'false').lower() == 'true'
+
+        if grouped:
+            materials = die_manager.get_materials_grouped()
+        else:
+            element_id = request.args.get('elementId')
+            materials = die_manager.get_materials(element_id=element_id)
+
+        return jsonify({
+            'success': True,
+            'data': materials
+        })
+
+    except Exception as e:
+        print(f"获取刀模素材列表时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-materials/<material_id>', methods=['GET'])
+def get_die_material_file(material_id):
+    """获取刀模素材文件"""
+    try:
+        file_path = die_manager.get_material_file_path(material_id)
+
+        if not file_path:
+            return json_error('素材不存在', 404)
+
+        return send_file(file_path, mimetype='image/png')
+
+    except Exception as e:
+        print(f"获取刀模素材文件时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/die-materials/<material_id>', methods=['DELETE'])
+def delete_die_material(material_id):
+    """删除刀模素材"""
+    try:
+        success = die_manager.delete_material(material_id)
+
+        if not success:
+            return json_error('素材不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'message': '素材删除成功'
+        })
+
+    except Exception as e:
+        print(f"删除刀模素材时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+# ============================================================
+# 布局模版API
+# ============================================================
+
+layout_template_manager = LayoutTemplateManager()
+
+@app.route('/api/layout-templates', methods=['POST'])
+def create_layout_template():
+    """创建布局模版"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return json_error('请求数据为空', 400)
+
+        name = data.get('name')
+        paper_size = data.get('paperSize')
+        paper_orientation = data.get('paperOrientation')
+        elements = data.get('elements', [])
+        preview_image = data.get('previewImage')
+
+        if not name:
+            return json_error('模版名称不能为空', 400)
+
+        if not paper_size or paper_size not in ['A3', 'A4']:
+            return json_error('无效的纸张尺寸', 400)
+
+        if not paper_orientation or paper_orientation not in ['landscape', 'portrait']:
+            return json_error('无效的纸张方向', 400)
+
+        template = layout_template_manager.create_template(
+            name, paper_size, paper_orientation, elements, preview_image
+        )
+
+        return jsonify({
+            'success': True,
+            'data': template
+        })
+
+    except Exception as e:
+        print(f"创建布局模版时出错: {str(e)}")
+        traceback.print_exc()
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/layout-templates', methods=['GET'])
+def get_layout_templates():
+    """获取所有布局模版"""
+    try:
+        templates = layout_template_manager.get_all_templates()
+
+        return jsonify({
+            'success': True,
+            'data': templates
+        })
+
+    except Exception as e:
+        print(f"获取布局模版列表时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/layout-templates/<template_id>', methods=['GET'])
+def get_layout_template(template_id):
+    """获取单个布局模版"""
+    try:
+        template = layout_template_manager.get_template(template_id)
+
+        if not template:
+            return json_error('模版不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'data': template
+        })
+
+    except Exception as e:
+        print(f"获取布局模版时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/layout-templates/<template_id>', methods=['DELETE'])
+def delete_layout_template(template_id):
+    """删除布局模版"""
+    try:
+        success = layout_template_manager.delete_template(template_id)
+
+        if not success:
+            return json_error('模版不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'message': '模版删除成功'
+        })
+
+    except Exception as e:
+        print(f"删除布局模版时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+# ============================================================
+# 打印素材API
+# ============================================================
+
+print_material_generator = PrintMaterialGenerator()
+
+@app.route('/api/print-materials', methods=['POST'])
+def create_print_material():
+    """创建打印素材（生成PDF）"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return json_error('请求数据为空', 400)
+
+        name = data.get('name')
+        template_id = data.get('templateId')
+        material_mappings = data.get('materialMappings', [])
+
+        if not name:
+            return json_error('打印素材名称不能为空', 400)
+
+        if not template_id:
+            return json_error('模版ID不能为空', 400)
+
+        # 获取模版
+        template = layout_template_manager.get_template(template_id)
+        if not template:
+            return json_error('模版不存在', 404)
+
+        # 生成打印素材
+        print_material = print_material_generator.create_print_material(
+            name, template, material_mappings
+        )
+
+        return jsonify({
+            'success': True,
+            'data': print_material
+        })
+
+    except Exception as e:
+        print(f"创建打印素材时出错: {str(e)}")
+        traceback.print_exc()
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/print-materials', methods=['GET'])
+def get_print_materials():
+    """获取所有打印素材"""
+    try:
+        materials = print_material_generator.get_all_print_materials()
+
+        return jsonify({
+            'success': True,
+            'data': materials
+        })
+
+    except Exception as e:
+        print(f"获取打印素材列表时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/print-materials/<material_id>', methods=['GET'])
+def get_print_material(material_id):
+    """获取单个打印素材"""
+    try:
+        material = print_material_generator.get_print_material(material_id)
+
+        if not material:
+            return json_error('打印素材不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'data': material
+        })
+
+    except Exception as e:
+        print(f"获取打印素材时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/print-materials/<material_id>/pdf', methods=['GET'])
+def download_print_material_pdf(material_id):
+    """下载打印素材PDF"""
+    try:
+        material = print_material_generator.get_print_material(material_id)
+
+        if not material:
+            return json_error('打印素材不存在', 404)
+
+        pdf_path = material.get('pdfFilePath')
+
+        if not pdf_path or not os.path.exists(pdf_path):
+            return json_error('PDF文件不存在', 404)
+
+        return send_file(
+            pdf_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=material.get('pdfFileName', 'print.pdf')
+        )
+
+    except Exception as e:
+        print(f"下载打印素材PDF时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/print-materials/<material_id>', methods=['DELETE'])
+def delete_print_material(material_id):
+    """删除打印素材"""
+    try:
+        success = print_material_generator.delete_print_material(material_id)
+
+        if not success:
+            return json_error('打印素材不存在', 404)
+
+        return jsonify({
+            'success': True,
+            'message': '打印素材删除成功'
+        })
+
+    except Exception as e:
+        print(f"删除打印素材时出错: {str(e)}")
+        return json_error(f'服务器错误: {str(e)}', 500)
+
 
 @app.route('/')
 def index():

@@ -191,6 +191,7 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
         cancelText="仅下载"
         onConfirm={() => handleConfirmDownload(true)}
         onCancel={() => handleConfirmDownload(false)}
+        onClose={() => setShowConfirmDialog(false)}
       />
     </div>
   );

@@ -4,6 +4,9 @@ import { TemplateBox } from './components/TemplateBox.tsx';
 import { ResultsBox } from './components/ResultsBox.tsx';
 import { UploadModal } from './components/UploadModal.tsx';
 import { PreviewModal } from './components/PreviewModal.tsx';
+import { DieElementList } from './components/DieElementList.tsx';
+import { DieMaterialAndLayoutManager } from './components/DieMaterialAndLayoutManager.tsx';
+import { PrintLayout } from './components/PrintLayout.tsx';
 import { Template } from './types/index.ts';
 import { apiService } from './services/api.ts';
 import { appConfig } from './config.ts';
@@ -15,7 +18,14 @@ function App() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
-  const [activeTab, setActiveTab] = useState<'templates' | 'results'>('templates');
+
+  // Tab状态
+  const [activeTab, setActiveTab] = useState<'templates' | 'results' | 'elements' | 'materials' | 'layout'>('templates');
+
+  // 打印排版相关状态
+  const [loadTemplateId, setLoadTemplateId] = useState<string | null>(null);
+  const [printMaterialCreated, setPrintMaterialCreated] = useState(0);
+
   const backendAddress = `${appConfig.domain}:8012`;
 
   useEffect(() => {
@@ -55,9 +65,9 @@ function App() {
   const renderServerStatus = () => (
     <div className={`
       flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium
-      ${isServerOnline === true 
-        ? 'bg-green-100 text-green-700' 
-        : isServerOnline === false 
+      ${isServerOnline === true
+        ? 'bg-green-100 text-green-700'
+        : isServerOnline === false
         ? 'bg-red-100 text-red-700'
         : 'bg-yellow-100 text-yellow-700'
       }
@@ -65,7 +75,7 @@ function App() {
       {isServerOnline === true && <Wifi className="w-4 h-4" />}
       {isServerOnline === false && <WifiOff className="w-4 h-4" />}
       {isServerOnline === null && <div className="w-4 h-4 bg-yellow-500 rounded-full animate-pulse" />}
-      
+
       <span>
         {isServerOnline === true && '服务器在线'}
         {isServerOnline === false && '服务器离线'}
@@ -73,7 +83,6 @@ function App() {
       </span>
     </div>
   );
-
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,24 +117,56 @@ function App() {
 
       {/* 主内容 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tab 导航 */}
-        <div className="mb-6 flex justify-center">
+        {/* Tab导航 - 两组并列显示 */}
+        <div className="mb-6 flex justify-center items-center gap-6">
+          {/* 第一组: 异形模版箱子 和 生成素材管理 */}
           <div className="inline-flex bg-white border border-gray-200 rounded-lg p-0.5">
             <button
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'templates' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('templates')}
             >
-              模板箱子
+              异形模版箱子
             </button>
             <button
-              className={`ml-0.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'results' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('results')}
             >
               生成素材管理
+            </button>
+          </div>
+
+          {/* 分隔符 */}
+          <div className="w-px h-8 bg-gray-300"></div>
+
+          {/* 第二组: 刀模相关三个tab */}
+          <div className="inline-flex bg-white border border-gray-200 rounded-lg p-0.5">
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'elements' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('elements')}
+            >
+              刀模元素管理
+            </button>
+            <button
+              className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'materials' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('materials')}
+            >
+              刀模素材与排版管理
+            </button>
+            <button
+              className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'layout' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('layout')}
+            >
+              打印排版
             </button>
           </div>
         </div>
@@ -148,15 +189,34 @@ function App() {
 
         {/* 页面内容 */}
         <div className="animate-fade-in">
-          {activeTab === 'templates' ? (
+          {activeTab === 'templates' && (
             <TemplateBox
               onCreateNew={() => setIsUploadModalOpen(true)}
               onTemplateSelect={handleTemplateSelect}
               onTemplatePreview={handleTemplatePreview}
               refreshTrigger={refreshCounter}
             />
-          ) : (
-            <ResultsBox />
+          )}
+          {activeTab === 'results' && <ResultsBox />}
+          {activeTab === 'elements' && <DieElementList />}
+          {activeTab === 'materials' && (
+            <DieMaterialAndLayoutManager
+              onUseTemplate={(templateId) => {
+                setLoadTemplateId(templateId);
+                setActiveTab('layout');
+              }}
+              onPrintMaterialCreated={() => setPrintMaterialCreated(prev => prev + 1)}
+            />
+          )}
+          {activeTab === 'layout' && (
+            <PrintLayout
+              loadTemplateId={loadTemplateId}
+              onTemplateLoaded={() => setLoadTemplateId(null)}
+              onPrintMaterialCreated={() => {
+                setPrintMaterialCreated(prev => prev + 1);
+                alert('打印素材生成成功！可前往"刀模素材与排版管理"页面查看');
+              }}
+            />
           )}
         </div>
       </main>
@@ -171,7 +231,7 @@ function App() {
         </div>
       </footer>
 
-      {/* 上传模态框（仅模板Tab使用） */}
+      {/* 上传模态框（仅异形模版箱子Tab使用） */}
       {activeTab === 'templates' && (
         <UploadModal
           isOpen={isUploadModalOpen}
@@ -181,7 +241,7 @@ function App() {
         />
       )}
 
-      {/* 预览模态框（仅模板Tab使用） */}
+      {/* 预览模态框（仅异形模版箱子Tab使用） */}
       {activeTab === 'templates' && (
         <PreviewModal
           isOpen={isPreviewModalOpen}

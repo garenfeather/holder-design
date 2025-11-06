@@ -115,3 +115,58 @@ export interface GenerateResult {
   template: Template;
   usedStrokeWidth?: number | null;
 }
+
+export interface DieElement {
+  id: string;
+  name: string;
+  cutWidth: number; // 裁切宽度 (cm)
+  cutHeight: number; // 裁切高度 (cm)
+  refWidth: number; // 参考宽度 (cm)
+  refHeight: number; // 参考高度 (cm)
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 布局模版相关
+export interface LayoutElement {
+  id: string; // 布局元素实例ID
+  elementId: string; // 刀模元素ID
+  elementName: string;
+  cutSize: {
+    width: number; // cm
+    height: number; // cm
+  };
+  x: number; // mm
+  y: number; // mm
+  rotation: number; // 0, 90, 180, 270
+}
+
+export interface LayoutTemplate {
+  id: string;
+  name: string;
+  paperSize: 'A3' | 'A4';
+  paperOrientation: 'landscape' | 'portrait';
+  elements: LayoutElement[];
+  previewImage: string; // Base64 image
+  createdAt: string;
+}
+
+// 打印素材相关
+export interface MaterialMapping {
+  layoutElementId: string; // 对应模版中的布局元素ID
+  materialId: string; // 使用的刀模素材ID
+  elementId: string; // 刀模元素ID
+}
+
+export interface PrintMaterial {
+  id: string;
+  name: string;
+  templateId: string;
+  templateName: string;
+  pdfFileName: string;
+  pdfFilePath: string;
+  previewImage: string; // Base64 image
+  fileSize: number;
+  materialMappings: MaterialMapping[];
+  createdAt: string;
+}

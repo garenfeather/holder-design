@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Check, RotateCcw, Download, Eye, EyeOff, Crop, ZoomIn, ZoomOut, RotateCw, Package } from 'lucide-react';
+import { X, Upload, Check, RotateCcw, Download, Eye, EyeOff, Crop, ZoomIn, ZoomOut, RotateCw, Package, Trash2 } from 'lucide-react';
 import { Template, GenerateResult, Component } from '../types/index.ts';
 import { apiService, API_BASE_URL } from '../services/api.ts';
 import { ConfirmDialog } from './ConfirmDialog.tsx';
@@ -233,6 +233,52 @@ export const UseModal: React.FC<UseModalProps> = ({
       img.src = result;
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleSkipUpload = () => {
+    if (!template?.viewLayer) return;
+
+    // 获取模板尺寸
+    const width = template.viewLayer.width;
+    const height = template.viewLayer.height;
+
+    // 创建canvas生成空白图片
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      // 填充白色背景
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+
+      // 将canvas转换为Blob，然后创建File对象
+      canvas.toBlob((blob) => {
+        if (blob) {
+          // 创建File对象
+          const file = new File([blob], 'blank_image.png', { type: 'image/png' });
+          setSelectedImage(file);
+
+          // 创建预览URL
+          const previewUrl = URL.createObjectURL(blob);
+          setImagePreview(previewUrl);
+
+          // 设置原始尺寸
+          setOriginalImageSize({ width, height });
+
+          // 由于是完全匹配的空白图片，比例检查直接通过
+          setRatioCheck({
+            isMatch: true,
+            userRatio: width / height,
+            templateRatio: width / height
+          });
+
+          // 跳过编辑，直接进入生成步骤
+          setStep('generate');
+        }
+      }, 'image/png');
+    }
   };
 
   const checkImageRatio = (imageWidth: number, imageHeight: number) => {
@@ -612,6 +658,23 @@ export const UseModal: React.FC<UseModalProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!generateResult) return;
+    if (!confirm('确定删除该生成结果吗？此操作不可撤销。')) return;
+
+    try {
+      const deleteRes = await apiService.deleteResult(generateResult.resultId);
+      if (deleteRes.success) {
+        onClose();
+      } else {
+        alert(deleteRes.error || '删除失败');
+      }
+    } catch (error) {
+      console.error('删除失败:', error);
+      alert(error instanceof Error ? error.message : '删除失败，请重试');
+    }
+  };
+
   if (!isOpen || !template) return null;
 
   return (
@@ -661,7 +724,31 @@ export const UseModal: React.FC<UseModalProps> = ({
           {/* 上传步骤 */}
           {step === 'upload' && (
             <div className="text-center">
-              <div 
+              {/* 跳过上传按钮 */}
+              <div className="mb-6">
+                <button
+                  onClick={handleSkipUpload}
+                  className="px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:border-primary-500 hover:text-primary-600 transition-colors flex items-center space-x-2 mx-auto"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>跳过上传，使用空白图片</span>
+                </button>
+                <p className="text-xs text-gray-400 mt-2">
+                  将生成 {template.viewLayer?.width} × {template.viewLayer?.height}px 的白色空白图片
+                </p>
+              </div>
+
+              <div className="mb-6 flex items-center justify-center">
+                <div className="flex items-center w-full max-w-xs">
+                  <div className="flex-grow border-t border-gray-300"></div>
+                  <span className="flex-shrink mx-4 text-gray-400 text-sm">或</span>
+                  <div className="flex-grow border-t border-gray-300"></div>
+                </div>
+              </div>
+
+              <div
                 className="border-2 border-dashed border-gray-300 rounded-lg p-12 hover:border-primary-400 transition-colors cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -1264,6 +1351,13 @@ export const UseModal: React.FC<UseModalProps> = ({
                   <span>下载PSD</span>
                 </button>
                 <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 text-sm rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-600 transition-colors flex items-center space-x-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>删除</span>
+                </button>
+                <button
                   onClick={onClose}
                   className="btn-primary"
                 >
@@ -1333,6 +1427,7 @@ export const UseModal: React.FC<UseModalProps> = ({
         cancelText="仅下载"
         onConfirm={() => handleConfirmDownload(true)}
         onCancel={() => handleConfirmDownload(false)}
+        onClose={() => setShowDownloadConfirmDialog(false)}
       />
     </div>
   );
