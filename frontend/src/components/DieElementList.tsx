@@ -229,7 +229,7 @@ export const DieElementList: React.FC = () => {
           <p className="mt-2 text-gray-500">加载中...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {elements.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <Scissors className="w-16 h-16 mx-auto text-gray-300 mb-4" />
@@ -244,41 +244,41 @@ export const DieElementList: React.FC = () => {
             elements.map((element) => (
               <div
                 key={element.id}
-                className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow"
+                className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow"
               >
                 {/* 元素预览图 */}
-                <div className="aspect-square bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
-                  <Scissors className="w-12 h-12 text-gray-400" />
+                <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                  <Scissors className="w-8 h-8 text-gray-400" />
                 </div>
 
                 {/* 元素信息 */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-gray-900">{element.name}</h3>
-                  <div className="text-sm text-gray-600">
-                    <div>裁切尺寸: {element.cutSize.width} × {element.cutSize.height} cm</div>
-                    <div>参考尺寸: {element.referenceSize.width} × {element.referenceSize.height} cm</div>
+                <div className="space-y-1">
+                  <h3 className="font-semibold text-gray-900 text-sm">{element.name}</h3>
+                  <div className="text-xs text-gray-600">
+                    <div>裁切: {element.cutSize.width}×{element.cutSize.height}cm</div>
+                    <div>参考: {element.referenceSize.width}×{element.referenceSize.height}cm</div>
                   </div>
                 </div>
 
                 {/* 操作按钮 */}
-                <div className="mt-4 flex items-center space-x-2">
+                <div className="mt-3 flex items-center space-x-1">
                   <button
                     onClick={() => handleGenerateMaterial(element)}
-                    className="flex-1 px-3 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors text-sm font-medium"
+                    className="flex-1 px-2 py-1.5 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors text-xs font-medium"
                   >
                     生成素材
                   </button>
                   <button
                     onClick={() => handleEdit(element)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3 h-3" />
                   </button>
                   <button
                     onClick={() => handleDelete(element)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
               </div>

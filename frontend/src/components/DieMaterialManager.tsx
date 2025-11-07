@@ -202,7 +202,7 @@ export const DieMaterialManager: React.FC = () => {
 
                 {/* 素材网格 */}
                 {expandedGroups.has(elementId) && (
-                  <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  <div className="p-4 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                     {group.materials.map((material) => (
                       <div
                         key={material.id}
@@ -214,12 +214,12 @@ export const DieMaterialManager: React.FC = () => {
                             e.stopPropagation();
                             toggleMaterialSelection(material.id);
                           }}
-                          className="absolute top-2 left-2 z-10 p-1 bg-white rounded shadow-sm hover:bg-gray-50"
+                          className="absolute top-1 left-1 z-10 p-0.5 bg-white rounded shadow-sm hover:bg-gray-50"
                         >
                           {selectedMaterials.has(material.id) ? (
-                            <CheckSquare className="w-5 h-5 text-primary-600" />
+                            <CheckSquare className="w-4 h-4 text-primary-600" />
                           ) : (
-                            <Square className="w-5 h-5 text-gray-400" />
+                            <Square className="w-4 h-4 text-gray-400" />
                           )}
                         </button>
 
@@ -239,42 +239,42 @@ export const DieMaterialManager: React.FC = () => {
 
                         {/* 操作按钮（悬停显示） */}
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-1">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handlePreview(material);
                               }}
-                              className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                              className="p-1.5 bg-white rounded hover:bg-gray-100 transition-colors"
                               title="预览"
                             >
-                              <Eye className="w-4 h-4 text-gray-700" />
+                              <Eye className="w-3 h-3 text-gray-700" />
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDownload(material);
                               }}
-                              className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                              className="p-1.5 bg-white rounded hover:bg-gray-100 transition-colors"
                               title="下载"
                             >
-                              <Download className="w-4 h-4 text-gray-700" />
+                              <Download className="w-3 h-3 text-gray-700" />
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteClick(material);
                               }}
-                              className="p-2 bg-white rounded-lg hover:bg-red-50 transition-colors"
+                              className="p-1.5 bg-white rounded hover:bg-red-50 transition-colors"
                               title="删除"
                             >
-                              <Trash2 className="w-4 h-4 text-red-600" />
+                              <Trash2 className="w-3 h-3 text-red-600" />
                             </button>
                           </div>
                         </div>
 
                         {/* 文件名 */}
-                        <div className="p-2 text-xs text-gray-600 truncate bg-white">
+                        <div className="p-1.5 text-xs text-gray-600 truncate bg-white">
                           {material.fileName}
                         </div>
                       </div>

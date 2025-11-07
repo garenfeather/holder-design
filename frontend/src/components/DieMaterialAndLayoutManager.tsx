@@ -308,7 +308,7 @@ export const DieMaterialAndLayoutManager: React.FC<DieMaterialAndLayoutManagerPr
 
                     {/* 素材网格 */}
                     {expandedGroups.has(elementId) && (
-                      <div className="p-2 grid grid-cols-2 gap-2">
+                      <div className="p-2 grid grid-cols-3 gap-1.5">
                         {group.materials.map((material) => (
                           <div
                             key={material.id}
@@ -325,42 +325,42 @@ export const DieMaterialAndLayoutManager: React.FC<DieMaterialAndLayoutManagerPr
 
                             {/* 操作按钮（悬停显示） */}
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                              <div className="flex items-center space-x-1">
+                              <div className="flex items-center space-x-0.5">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handlePreview(material);
                                   }}
-                                  className="p-1.5 bg-white rounded hover:bg-gray-100 transition-colors"
+                                  className="p-1 bg-white rounded hover:bg-gray-100 transition-colors"
                                   title="预览"
                                 >
-                                  <Eye className="w-3.5 h-3.5 text-gray-700" />
+                                  <Eye className="w-2.5 h-2.5 text-gray-700" />
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDownload(material);
                                   }}
-                                  className="p-1.5 bg-white rounded hover:bg-gray-100 transition-colors"
+                                  className="p-1 bg-white rounded hover:bg-gray-100 transition-colors"
                                   title="下载"
                                 >
-                                  <Download className="w-3.5 h-3.5 text-gray-700" />
+                                  <Download className="w-2.5 h-2.5 text-gray-700" />
                                 </button>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDeleteClick(material);
                                   }}
-                                  className="p-1.5 bg-white rounded hover:bg-red-50 transition-colors"
+                                  className="p-1 bg-white rounded hover:bg-red-50 transition-colors"
                                   title="删除"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                                  <Trash2 className="w-2.5 h-2.5 text-red-600" />
                                 </button>
                               </div>
                             </div>
 
                             {/* 文件名 */}
-                            <div className="p-1.5 text-xs text-gray-600 truncate bg-white">
+                            <div className="p-1 text-xs text-gray-600 truncate bg-white">
                               {material.fileName}
                             </div>
                           </div>
