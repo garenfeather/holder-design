@@ -6,7 +6,6 @@ import { UploadModal } from './components/UploadModal.tsx';
 import { PreviewModal } from './components/PreviewModal.tsx';
 import { DieElementList } from './components/DieElementList.tsx';
 import { DieMaterialAndLayoutManager } from './components/DieMaterialAndLayoutManager.tsx';
-import { PrintLayout } from './components/PrintLayout.tsx';
 import { Template } from './types/index.ts';
 import { apiService } from './services/api.ts';
 import { appConfig } from './config.ts';
@@ -20,11 +19,7 @@ function App() {
   const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Tab状态
-  const [activeTab, setActiveTab] = useState<'templates' | 'results' | 'elements' | 'materials' | 'layout'>('templates');
-
-  // 打印排版相关状态
-  const [loadTemplateId, setLoadTemplateId] = useState<string | null>(null);
-  const [printMaterialCreated, setPrintMaterialCreated] = useState(0);
+  const [activeTab, setActiveTab] = useState<'templates' | 'results' | 'elements' | 'materials'>('templates');
 
   const backendAddress = `${appConfig.domain}:8012`;
 
@@ -160,14 +155,6 @@ function App() {
             >
               刀模素材与排版管理
             </button>
-            <button
-              className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'layout' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-              onClick={() => setActiveTab('layout')}
-            >
-              打印排版
-            </button>
           </div>
         </div>
 
@@ -199,25 +186,7 @@ function App() {
           )}
           {activeTab === 'results' && <ResultsBox />}
           {activeTab === 'elements' && <DieElementList />}
-          {activeTab === 'materials' && (
-            <DieMaterialAndLayoutManager
-              onUseTemplate={(templateId) => {
-                setLoadTemplateId(templateId);
-                setActiveTab('layout');
-              }}
-              onPrintMaterialCreated={() => setPrintMaterialCreated(prev => prev + 1)}
-            />
-          )}
-          {activeTab === 'layout' && (
-            <PrintLayout
-              loadTemplateId={loadTemplateId}
-              onTemplateLoaded={() => setLoadTemplateId(null)}
-              onPrintMaterialCreated={() => {
-                setPrintMaterialCreated(prev => prev + 1);
-                alert('打印素材生成成功！可前往"刀模素材与排版管理"页面查看');
-              }}
-            />
-          )}
+          {activeTab === 'materials' && <DieMaterialAndLayoutManager />}
         </div>
       </main>
 

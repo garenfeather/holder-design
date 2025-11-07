@@ -33,15 +33,7 @@ interface GroupedMaterials {
   };
 }
 
-interface DieMaterialAndLayoutManagerProps {
-  onUseTemplate?: (templateId: string) => void;
-  onPrintMaterialCreated?: () => void;
-}
-
-export const DieMaterialAndLayoutManager: React.FC<DieMaterialAndLayoutManagerProps> = ({
-  onUseTemplate,
-  onPrintMaterialCreated,
-}) => {
+export const DieMaterialAndLayoutManager: React.FC = () => {
   // 刀模素材相关状态
   const [groupedMaterials, setGroupedMaterials] = useState<GroupedMaterials>({});
   const [materialsLoading, setMaterialsLoading] = useState(true);
@@ -123,12 +115,6 @@ export const DieMaterialAndLayoutManager: React.FC<DieMaterialAndLayoutManagerPr
   }, []);
 
   // 监听打印素材创建事件
-  useEffect(() => {
-    if (onPrintMaterialCreated) {
-      loadPrintMaterials();
-    }
-  }, [onPrintMaterialCreated]);
-
   // 切换分组展开/折叠
   const toggleGroup = (elementId: string) => {
     const newExpanded = new Set(expandedGroups);
@@ -195,14 +181,6 @@ export const DieMaterialAndLayoutManager: React.FC<DieMaterialAndLayoutManagerPr
       setDeleteTemplateConfirm({ show: false, template: null });
       setSelectedTemplate(null);
     }
-  };
-
-  // 使用模版
-  const handleUseTemplate = (templateId: string) => {
-    if (onUseTemplate) {
-      onUseTemplate(templateId);
-    }
-    setSelectedTemplate(null);
   };
 
   // 删除打印素材
@@ -550,7 +528,6 @@ export const DieMaterialAndLayoutManager: React.FC<DieMaterialAndLayoutManagerPr
           isOpen={true}
           template={selectedTemplate}
           onClose={() => setSelectedTemplate(null)}
-          onUseTemplate={handleUseTemplate}
           onDelete={handleDeleteTemplate}
         />
       )}

@@ -6,7 +6,6 @@ interface TemplateDetailDialogProps {
   isOpen: boolean;
   template: LayoutTemplate | null;
   onClose: () => void;
-  onUseTemplate: (templateId: string) => void;
   onDelete: (templateId: string) => void;
 }
 
@@ -14,7 +13,6 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
   isOpen,
   template,
   onClose,
-  onUseTemplate,
   onDelete,
 }) => {
   if (!isOpen || !template) return null;
@@ -138,20 +136,12 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
             <Trash2 className="w-4 h-4" />
             <span>删除模版</span>
           </button>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              关闭
-            </button>
-            <button
-              onClick={() => onUseTemplate(template.id)}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              使用排版
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            关闭
+          </button>
         </div>
       </div>
     </div>

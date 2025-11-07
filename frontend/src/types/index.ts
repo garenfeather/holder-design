@@ -119,10 +119,14 @@ export interface GenerateResult {
 export interface DieElement {
   id: string;
   name: string;
-  cutWidth: number; // 裁切宽度 (cm)
-  cutHeight: number; // 裁切高度 (cm)
-  refWidth: number; // 参考宽度 (cm)
-  refHeight: number; // 参考高度 (cm)
+  cutSize: {
+    width: number; // cm
+    height: number; // cm
+  };
+  referenceSize: {
+    width: number; // cm
+    height: number; // cm
+  };
   createdAt: string;
   updatedAt: string;
 }

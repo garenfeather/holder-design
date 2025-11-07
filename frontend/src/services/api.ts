@@ -568,10 +568,8 @@ class ApiService {
   // 创建刀模元素
   async createDieElement(data: {
     name: string;
-    cutWidth: number;
-    cutHeight: number;
-    refWidth: number;
-    refHeight: number;
+    cutSize: { width: number; height: number };
+    referenceSize: { width: number; height: number };
   }): Promise<ApiResponse<any>> {
     return this.post('/api/die-elements', data);
   }
@@ -579,10 +577,8 @@ class ApiService {
   // 更新刀模元素
   async updateDieElement(elementId: string, data: {
     name?: string;
-    cutWidth?: number;
-    cutHeight?: number;
-    refWidth?: number;
-    refHeight?: number;
+    cutSize?: { width: number; height: number };
+    referenceSize?: { width: number; height: number };
   }): Promise<ApiResponse<any>> {
     return this.put(`/api/die-elements/${elementId}`, data);
   }
