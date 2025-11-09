@@ -16,7 +16,7 @@ kill -9 $(lsof -t -i:8012) 2>/dev/null
 # 启动后端服务
 echo "正在启动后端服务..."
 cd backend
-PYTHONIOENCODING=utf-8 python3 app.py &
+PYTHONIOENCODING=utf-8 /usr/local/bin/python3 app.py &
 cd ..
 
 # 启动前端服务

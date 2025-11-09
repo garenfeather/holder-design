@@ -140,16 +140,25 @@ export interface LayoutElement {
     width: number; // cm
     height: number; // cm
   };
-  x: number; // mm
-  y: number; // mm
-  rotation: number; // 0, 90, 180, 270
+  position: {
+    x: number; // mm
+    y: number; // mm
+  };
+  rotation: 0 | 90; // 0=无旋转, 90=逆时针90°
+  layerIndex: number; // PSD图层索引
 }
 
 export interface LayoutTemplate {
   id: string;
   name: string;
-  paperSize: 'A3' | 'A4';
-  paperOrientation: 'landscape' | 'portrait';
+  psdFileName?: string; // PSD文件名（新格式）
+  canvasSize?: { // 画布尺寸（新格式，mm）
+    width: number;
+    height: number;
+  };
+  // 旧格式字段（向后兼容）
+  paperSize?: 'A3' | 'A4';
+  paperOrientation?: 'landscape' | 'portrait';
   elements: LayoutElement[];
   previewImage: string; // Base64 image
   createdAt: string;

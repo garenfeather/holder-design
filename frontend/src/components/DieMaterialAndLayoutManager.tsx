@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Image, Download, Trash2, Eye, ChevronDown, ChevronRight, FileText, Layout, FileImage } from 'lucide-react';
+import { Image, Trash2, ChevronDown, ChevronRight, FileText, Layout, FileImage } from 'lucide-react';
 import { apiService } from '../services/api.ts';
 import { ConfirmDialog } from './ConfirmDialog.tsx';
-import { ResultDetailModal } from './ResultDetailModal.tsx';
 import { TemplateDetailDialog } from './TemplateDetailDialog.tsx';
 import { PrintMaterialDetailDialog } from './PrintMaterialDetailDialog.tsx';
+import { LayoutTemplateUpload } from './LayoutTemplateUpload.tsx';
 import { LayoutTemplate, PrintMaterial } from '../types/index.ts';
 
 interface DieMaterial {
@@ -33,7 +33,11 @@ interface GroupedMaterials {
   };
 }
 
-export const DieMaterialAndLayoutManager: React.FC = () => {
+interface Props {
+  onNavigateToPrintArrangement?: (templateId: string) => void;
+}
+
+export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrintArrangement }) => {
   // 刀模素材相关状态
   const [groupedMaterials, setGroupedMaterials] = useState<GroupedMaterials>({});
   const [materialsLoading, setMaterialsLoading] = useState(true);
@@ -42,7 +46,6 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
     show: false,
     material: null,
   });
-  const [previewMaterial, setPreviewMaterial] = useState<DieMaterial | null>(null);
 
   // 布局模版相关状态
   const [templates, setTemplates] = useState<LayoutTemplate[]>([]);
@@ -147,21 +150,6 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
   };
 
   // 下载刀模素材
-  const handleDownload = (material: DieMaterial) => {
-    const url = apiService.getDieMaterialUrl(material.id);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = material.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // 预览刀模素材
-  const handlePreview = (material: DieMaterial) => {
-    setPreviewMaterial(material);
-  };
-
   // 删除模版
   const handleDeleteTemplate = (template: LayoutTemplate) => {
     setDeleteTemplateConfirm({ show: true, template });
@@ -213,6 +201,15 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // 使用模板
+  const handleUseTemplate = (templateId: string) => {
+    if (onNavigateToPrintArrangement) {
+      onNavigateToPrintArrangement(templateId);
+    } else {
+      alert('跳转功能未启用');
+    }
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -290,56 +287,29 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
                         {group.materials.map((material) => (
                           <div
                             key={material.id}
-                            className="relative group bg-gray-50 rounded-lg overflow-hidden border border-gray-200"
+                            className="relative group aspect-square overflow-hidden rounded-lg border border-gray-200 bg-white"
                           >
                             {/* 素材预览 */}
-                            <div className="aspect-square bg-gray-200 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center justify-center p-2">
                               <img
                                 src={apiService.getDieMaterialUrl(material.id)}
                                 alt={material.fileName}
-                                className="w-full h-full object-contain"
+                                className="max-w-full max-h-full object-contain"
                               />
                             </div>
 
                             {/* 操作按钮（悬停显示） */}
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                              <div className="flex items-center space-x-0.5">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePreview(material);
-                                  }}
-                                  className="p-1 bg-white rounded hover:bg-gray-100 transition-colors"
-                                  title="预览"
-                                >
-                                  <Eye className="w-2.5 h-2.5 text-gray-700" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDownload(material);
-                                  }}
-                                  className="p-1 bg-white rounded hover:bg-gray-100 transition-colors"
-                                  title="下载"
-                                >
-                                  <Download className="w-2.5 h-2.5 text-gray-700" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteClick(material);
-                                  }}
-                                  className="p-1 bg-white rounded hover:bg-red-50 transition-colors"
-                                  title="删除"
-                                >
-                                  <Trash2 className="w-2.5 h-2.5 text-red-600" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* 文件名 */}
-                            <div className="p-1 text-xs text-gray-600 truncate bg-white">
-                              {material.fileName}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(material);
+                                }}
+                                className="p-2 bg-white rounded-full hover:bg-red-50 transition-colors"
+                                title="删除"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -364,44 +334,50 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
           ) : (
             <div className="space-y-3 max-h-[800px] overflow-y-auto">
               {templates.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                <div className="text-center py-12 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
                   <Layout className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     还没有布局模版
                   </h3>
-                  <p className="text-gray-500 text-sm">
-                    前往打印排版功能创建布局模版
+                  <p className="text-gray-500 text-sm mb-6">
+                    上传 PSD 文件创建布局模版
                   </p>
+                  {/* PSD 上传组件 - 居中显示 */}
+                  <LayoutTemplateUpload onUploadSuccess={loadTemplates} />
                 </div>
               ) : (
-                templates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => setSelectedTemplate(template)}
-                  >
-                    {/* 预览图 */}
-                    <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
-                      <img
-                        src={template.previewImage}
-                        alt={template.name}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
+                <>
+                  {/* PSD 上传组件 - 模板列表顶部 */}
+                  <LayoutTemplateUpload onUploadSuccess={loadTemplates} />
+                  {templates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setSelectedTemplate(template)}
+                    >
+                      {/* 预览图 */}
+                      <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
+                        <img
+                          src={template.previewImage}
+                          alt={template.name}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
 
-                    {/* 信息 */}
-                    <div className="p-3">
-                      <h4 className="font-medium text-gray-900 text-sm truncate">{template.name}</h4>
-                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                        <span>{template.paperSize} {template.paperOrientation === 'landscape' ? '横向' : '纵向'}</span>
-                        <span>{template.elements.length} 个元素</span>
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {new Date(template.createdAt).toLocaleDateString('zh-CN')}
+                      {/* 信息 */}
+                      <div className="p-3">
+                        <h4 className="font-medium text-gray-900 text-sm truncate">{template.name}</h4>
+                        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                          <span>{template.paperSize} {template.paperOrientation === 'landscape' ? '横向' : '纵向'}</span>
+                          <span>{template.elements.length} 个元素</span>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          {new Date(template.createdAt).toLocaleDateString('zh-CN')}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </>
               )}
             </div>
           )}
@@ -505,23 +481,6 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
         />
       )}
 
-      {/* 刀模素材预览模态框 */}
-      {previewMaterial && (
-        <ResultDetailModal
-          isOpen={true}
-          onClose={() => setPreviewMaterial(null)}
-          result={{
-            id: previewMaterial.id,
-            templateId: '',
-            templateName: previewMaterial.elementName,
-            fileName: previewMaterial.fileName,
-            filePath: previewMaterial.filePath,
-            createdAt: previewMaterial.createdAt,
-          }}
-          customImageUrl={apiService.getDieMaterialUrl(previewMaterial.id)}
-        />
-      )}
-
       {/* 布局模版详情对话框 */}
       {selectedTemplate && (
         <TemplateDetailDialog
@@ -529,6 +488,7 @@ export const DieMaterialAndLayoutManager: React.FC = () => {
           template={selectedTemplate}
           onClose={() => setSelectedTemplate(null)}
           onDelete={handleDeleteTemplate}
+          onUseTemplate={handleUseTemplate}
         />
       )}
 

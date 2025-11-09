@@ -6,6 +6,7 @@ import { UploadModal } from './components/UploadModal.tsx';
 import { PreviewModal } from './components/PreviewModal.tsx';
 import { DieElementList } from './components/DieElementList.tsx';
 import { DieMaterialAndLayoutManager } from './components/DieMaterialAndLayoutManager.tsx';
+import { PrintArrangementEditor } from './components/PrintArrangementEditor.tsx';
 import { Template } from './types/index.ts';
 import { apiService } from './services/api.ts';
 import { appConfig } from './config.ts';
@@ -19,7 +20,10 @@ function App() {
   const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Tab状态
-  const [activeTab, setActiveTab] = useState<'templates' | 'results' | 'elements' | 'materials'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'results' | 'elements' | 'materials' | 'arrangement'>('templates');
+
+  // 排版打印状态
+  const [arrangementTemplateId, setArrangementTemplateId] = useState<string | null>(null);
 
   const backendAddress = `${appConfig.domain}:8012`;
 
@@ -55,6 +59,18 @@ function App() {
   const handleTemplatePreview = (template: Template) => {
     setPreviewTemplate(template);
     setIsPreviewModalOpen(true);
+  };
+
+  // 跳转到排版打印Tab
+  const navigateToPrintArrangement = (templateId: string) => {
+    setArrangementTemplateId(templateId);
+    setActiveTab('arrangement');
+  };
+
+  // 从排版打印返回
+  const handleArrangementClose = () => {
+    setActiveTab('materials');
+    setArrangementTemplateId(null);
   };
 
   const renderServerStatus = () => (
@@ -155,6 +171,14 @@ function App() {
             >
               刀模素材与排版管理
             </button>
+            <button
+              className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'arrangement' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setActiveTab('arrangement')}
+            >
+              排版打印
+            </button>
           </div>
         </div>
 
@@ -186,7 +210,17 @@ function App() {
           )}
           {activeTab === 'results' && <ResultsBox />}
           {activeTab === 'elements' && <DieElementList />}
-          {activeTab === 'materials' && <DieMaterialAndLayoutManager />}
+          {activeTab === 'materials' && (
+            <DieMaterialAndLayoutManager
+              onNavigateToPrintArrangement={navigateToPrintArrangement}
+            />
+          )}
+          {activeTab === 'arrangement' && (
+            <PrintArrangementEditor
+              templateId={arrangementTemplateId}
+              onClose={handleArrangementClose}
+            />
+          )}
         </div>
       </main>
 

@@ -825,6 +825,8 @@ def create_die_element():
             'data': element
         })
 
+    except ValueError as ve:
+        return json_error(str(ve), 400)
     except Exception as e:
         print(f"创建刀模元素时出错: {str(e)}")
         print(traceback.format_exc())
@@ -856,6 +858,8 @@ def update_die_element(element_id):
             'data': element
         })
 
+    except ValueError as ve:
+        return json_error(str(ve), 400)
     except Exception as e:
         print(f"更新刀模元素时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
@@ -1092,6 +1096,65 @@ def delete_layout_template(template_id):
     except Exception as e:
         print(f"删除布局模版时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
+
+
+@app.route('/api/layout-templates/upload-psd', methods=['POST'])
+def upload_psd_template():
+    """上传 PSD 文件并创建布局模板"""
+    temp_path = None
+    try:
+        # 检查文件
+        if 'psd' not in request.files:
+            return json_error('未找到 PSD 文件', 400)
+
+        psd_file = request.files['psd']
+        if psd_file.filename == '':
+            return json_error('未选择文件', 400)
+
+        # 验证文件扩展名
+        if not psd_file.filename.lower().endswith('.psd'):
+            return json_error('请上传 PSD 文件', 400)
+
+        # 保存临时文件
+        with tempfile.NamedTemporaryFile(suffix='.psd', delete=False) as temp_file:
+            psd_file.save(temp_file.name)
+            temp_path = temp_file.name
+
+        # 获取模板名称（可选）
+        name = request.form.get('name', os.path.splitext(psd_file.filename)[0])
+
+        # 创建模板
+        template = layout_template_manager.create_from_psd(temp_path, name)
+
+        return jsonify({
+            'success': True,
+            'data': template
+        })
+
+    except ValueError as e:
+        # 匹配失败的情况
+        error_data = e.args[0] if e.args else {}
+        if isinstance(error_data, dict):
+            return jsonify({
+                'success': False,
+                'error': error_data.get('message', '匹配失败'),
+                'unmatched_layers': error_data.get('unmatched_layers', [])
+            }), 400
+        else:
+            return json_error(str(e), 400)
+
+    except Exception as e:
+        print(f"上传 PSD 模板时出错: {str(e)}")
+        traceback.print_exc()
+        return json_error(f'服务器错误: {str(e)}', 500)
+
+    finally:
+        # 清理临时文件
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
 
 
 # ============================================================

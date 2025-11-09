@@ -10,6 +10,8 @@ from typing import List, Dict, Optional
 from PIL import Image, ImageDraw, ImageFont
 import base64
 from io import BytesIO
+import psd_layout_parser
+import die_manager
 
 
 class LayoutTemplateManager:
@@ -93,6 +95,111 @@ class LayoutTemplateManager:
         except Exception as e:
             print(f"Error deleting template {template_id}: {e}")
             return False
+
+    def create_from_psd(self, psd_file_path: str, name: str = None) -> Dict:
+        """
+        从 PSD 文件创建布局模板
+
+        Args:
+            psd_file_path: PSD 文件路径
+            name: 模板名称（可选，默认使用文件名）
+
+        Returns:
+            模板对象
+
+        Raises:
+            ValueError: 当图层无法匹配到刀模元素时
+        """
+        # 1. 解析 PSD
+        psd_info = psd_layout_parser.parse_psd_file(psd_file_path)
+
+        # 2. 获取所有刀模元素
+        die_elements = die_manager.DieManager().get_elements()
+
+        # 3. 匹配图层
+        match_result = psd_layout_parser.match_layers_to_die_elements(
+            psd_info['layers'],
+            die_elements
+        )
+
+        # 4. 检查是否全部匹配
+        if not match_result['success']:
+            raise ValueError({
+                'message': '部分图层无法匹配到刀模元素',
+                'unmatched_layers': match_result['unmatched_layers']
+            })
+
+        # 5. 生成模板数据
+        template_id = str(uuid.uuid4())
+        elements = []
+
+        for matched in match_result['matched']:
+            elements.append({
+                'id': str(uuid.uuid4()),
+                'elementId': matched['element_id'],
+                'elementName': matched['element_name'],
+                'cutSize': matched['cut_size'],
+                'position': matched['position'],
+                'rotation': matched['rotation'],
+                'layerIndex': matched['layer_index']
+            })
+
+        # 6. 生成预览图
+        preview_image = psd_layout_parser.generate_preview_image(
+            psd_info['canvas_size'],
+            elements
+        )
+
+        # 7. 确定模板名称
+        if not name:
+            name = os.path.splitext(os.path.basename(psd_file_path))[0]
+
+        # 8. 保存模板
+        template = {
+            'id': template_id,
+            'name': name,
+            'psdFileName': os.path.basename(psd_file_path),
+            'canvasSize': psd_info['canvas_size'],
+            'elements': elements,
+            'previewImage': preview_image,
+            'createdAt': datetime.now().isoformat()
+        }
+
+        # 保存到文件
+        template_path = os.path.join(self.storage_dir, f"{template_id}.json")
+        with open(template_path, 'w', encoding='utf-8') as f:
+            json.dump(template, f, ensure_ascii=False, indent=2)
+
+        return template
+
+    def clear_old_format_templates(self):
+        """
+        清空旧格式的模板数据
+        （旧格式使用 paperSize 和 paperOrientation，新格式使用 canvasSize）
+        """
+        if not os.path.exists(self.storage_dir):
+            return
+
+        cleared_count = 0
+        for filename in os.listdir(self.storage_dir):
+            if filename.endswith('.json'):
+                template_path = os.path.join(self.storage_dir, filename)
+                try:
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        template = json.load(f)
+
+                    # 检查是否为旧格式（有 paperSize 而没有 canvasSize）
+                    if 'paperSize' in template and 'canvasSize' not in template:
+                        os.remove(template_path)
+                        cleared_count += 1
+                        print(f"Cleared old format template: {template.get('name', filename)}")
+                except Exception as e:
+                    print(f"Error processing template {filename}: {e}")
+
+        if cleared_count > 0:
+            print(f"Total cleared {cleared_count} old format template(s)")
+        else:
+            print("No old format templates found")
 
     def _generate_preview(self, paper_size: str, paper_orientation: str,
                          elements: List[Dict]) -> str:

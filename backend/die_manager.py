@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 import uuid
+import math
 from PIL import Image
 
 
@@ -50,6 +51,27 @@ class DieManager:
 
     # ========== 刀模元素管理 ==========
 
+    def _cut_sizes_equal(self, size_a: Dict[str, float], size_b: Dict[str, float], tol: float = 1e-6) -> bool:
+        """判断两个裁切尺寸是否相同（考虑旋转：a×b 与 b×a 视为相同）"""
+        w_a = size_a.get("width", 0)
+        h_a = size_a.get("height", 0)
+        w_b = size_b.get("width", 0)
+        h_b = size_b.get("height", 0)
+
+        # 检查无旋转情况：width_a == width_b AND height_a == height_b
+        no_rotation = (
+            math.isclose(w_a, w_b, abs_tol=tol) and
+            math.isclose(h_a, h_b, abs_tol=tol)
+        )
+
+        # 检查旋转90度情况：width_a == height_b AND height_a == width_b
+        rotated_90 = (
+            math.isclose(w_a, h_b, abs_tol=tol) and
+            math.isclose(h_a, w_b, abs_tol=tol)
+        )
+
+        return no_rotation or rotated_90
+
     def create_element(self, name: str, cut_size: Dict[str, float],
                       reference_size: Dict[str, float]) -> Dict:
         """创建刀模元素
@@ -76,6 +98,12 @@ class DieManager:
 
         # 加载现有元素
         elements = self._load_json(self.elements_file)
+
+        # 校验是否存在相同尺寸
+        for existing in elements:
+            if self._cut_sizes_equal(existing.get("cutSize", {}), cut_size):
+                raise ValueError("已存在裁切尺寸完全相同的刀模元素，请勿重复创建")
+
         elements.append(element)
 
         # 保存
@@ -111,6 +139,12 @@ class DieManager:
 
         for i, element in enumerate(elements):
             if element["id"] == element_id:
+                # 如果要更新裁切尺寸，先校验是否重复
+                if cut_size is not None:
+                    for other in elements:
+                        if other["id"] != element_id and self._cut_sizes_equal(other.get("cutSize", {}), cut_size):
+                            raise ValueError("已存在裁切尺寸完全相同的刀模元素，无法变更为该尺寸")
+
                 # 更新字段
                 if name is not None:
                     element["name"] = name

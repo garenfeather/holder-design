@@ -7,6 +7,7 @@ interface TemplateDetailDialogProps {
   template: LayoutTemplate | null;
   onClose: () => void;
   onDelete: (templateId: string) => void;
+  onUseTemplate?: (templateId: string) => void;  // 新增：使用模板回调
 }
 
 export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
@@ -14,6 +15,7 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
   template,
   onClose,
   onDelete,
+  onUseTemplate,
 }) => {
   if (!isOpen || !template) return null;
 
@@ -72,16 +74,36 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
                     <span className="text-gray-600">名称：</span>
                     <span className="font-medium text-gray-900">{template.name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">纸张大小：</span>
-                    <span className="font-medium text-gray-900">{template.paperSize}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">方向：</span>
-                    <span className="font-medium text-gray-900">
-                      {template.paperOrientation === 'landscape' ? '横向' : '纵向'}
-                    </span>
-                  </div>
+                  {/* 兼容新旧格式 */}
+                  {(template as any).canvasSize ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">画布尺寸：</span>
+                        <span className="font-medium text-gray-900">
+                          {(template as any).canvasSize.width} × {(template as any).canvasSize.height} mm
+                        </span>
+                      </div>
+                      {(template as any).psdFileName && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">PSD文件：</span>
+                          <span className="font-medium text-gray-900">{(template as any).psdFileName}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">纸张大小：</span>
+                        <span className="font-medium text-gray-900">{(template as any).paperSize}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">方向：</span>
+                        <span className="font-medium text-gray-900">
+                          {(template as any).paperOrientation === 'landscape' ? '横向' : '纵向'}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">创建时间：</span>
                     <span className="font-medium text-gray-900">
@@ -136,12 +158,26 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
             <Trash2 className="w-4 h-4" />
             <span>删除模版</span>
           </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            关闭
-          </button>
+
+          <div className="flex items-center space-x-2">
+            {onUseTemplate && (
+              <button
+                onClick={() => {
+                  onUseTemplate(template.id);
+                  onClose();
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                使用布局模板
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              关闭
+            </button>
+          </div>
         </div>
       </div>
     </div>

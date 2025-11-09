@@ -116,22 +116,27 @@ class PrintMaterialGenerator:
     def _generate_pdf_and_preview(self, pdf_path: str, template: Dict,
                                   material_mappings: List[Dict]) -> str:
         """生成PDF和预览图"""
-        # 纸张尺寸（mm）
-        PAPER_SIZES = {
-            'A3': {'width': 420, 'height': 297},
-            'A4': {'width': 297, 'height': 210}
-        }
+        # 获取画布尺寸（支持新旧格式）
+        if 'canvasSize' in template:
+            # 新格式：直接使用 canvasSize
+            width_mm = template['canvasSize']['width']
+            height_mm = template['canvasSize']['height']
+        else:
+            # 旧格式：使用 paperSize 和 paperOrientation
+            PAPER_SIZES = {
+                'A3': {'width': 420, 'height': 297},
+                'A4': {'width': 297, 'height': 210}
+            }
+            paper_size = template['paperSize']
+            paper_orientation = template['paperOrientation']
+            paper = PAPER_SIZES.get(paper_size, PAPER_SIZES['A4'])
 
-        paper_size = template['paperSize']
-        paper_orientation = template['paperOrientation']
-        paper = PAPER_SIZES.get(paper_size, PAPER_SIZES['A4'])
+            # 如果是纵向，交换宽高
+            if paper_orientation == 'portrait':
+                paper = {'width': paper['height'], 'height': paper['width']}
 
-        # 如果是纵向，交换宽高
-        if paper_orientation == 'portrait':
-            paper = {'width': paper['height'], 'height': paper['width']}
-
-        width_mm = paper['width']
-        height_mm = paper['height']
+            width_mm = paper['width']
+            height_mm = paper['height']
 
         # 创建PDF
         c = canvas.Canvas(pdf_path, pagesize=(width_mm * mm, height_mm * mm))
@@ -166,9 +171,16 @@ class PrintMaterialGenerator:
             try:
                 img = Image.open(material_path)
 
-                # 元素位置和尺寸（mm）
-                x_mm = element['x']
-                y_mm = element['y']
+                # 元素位置和尺寸（mm）- 支持新旧格式
+                if 'position' in element:
+                    # 新格式
+                    x_mm = element['position']['x']
+                    y_mm = element['position']['y']
+                else:
+                    # 旧格式
+                    x_mm = element['x']
+                    y_mm = element['y']
+
                 w_mm = element['cutSize']['width'] * 10  # cm转mm
                 h_mm = element['cutSize']['height'] * 10
                 rotation = element.get('rotation', 0)
@@ -177,29 +189,48 @@ class PrintMaterialGenerator:
                 # 需要转换Y坐标
                 pdf_y_mm = height_mm - y_mm - h_mm
 
-                # 处理旋转
-                if rotation != 0:
-                    img = img.rotate(-rotation, expand=True)
+                # 处理旋转（仅支持90度逆时针旋转）
+                if rotation == 90:
+                    # 使用PIL预旋转图像（顺时针90度，因为PDF需要）
+                    img_rotated = img.rotate(-90, expand=True)
 
-                # 考虑旋转后的尺寸
-                if rotation == 90 or rotation == 270:
-                    w_mm, h_mm = h_mm, w_mm
-                    pdf_y_mm = height_mm - y_mm - h_mm
+                    # 保存临时旋转图像
+                    import tempfile
+                    temp_path = tempfile.mktemp(suffix='.png')
+                    img_rotated.save(temp_path)
 
-                # 绘制到PDF
-                c.drawImage(material_path, x_mm * mm, pdf_y_mm * mm,
-                          width=w_mm * mm, height=h_mm * mm,
-                          preserveAspectRatio=False)
+                    # 绘制到PDF（注意宽高交换）
+                    c.drawImage(temp_path, x_mm * mm, pdf_y_mm * mm,
+                              width=h_mm * mm, height=w_mm * mm,
+                              preserveAspectRatio=False)
 
-                # 绘制到预览图
-                preview_x = int(x_mm * MM_TO_PX)
-                preview_y = int(y_mm * MM_TO_PX)
-                preview_w = int(w_mm * MM_TO_PX)
-                preview_h = int(h_mm * MM_TO_PX)
+                    # 清理临时文件
+                    os.remove(temp_path)
 
-                # 调整图片大小并粘贴到预览图
-                img_resized = img.resize((preview_w, preview_h), Image.LANCZOS)
-                preview_img.paste(img_resized, (preview_x, preview_y))
+                    # 绘制到预览图（使用旋转后的图像）
+                    preview_x = int(x_mm * MM_TO_PX)
+                    preview_y = int(y_mm * MM_TO_PX)
+                    preview_w = int(h_mm * MM_TO_PX)  # 注意宽高交换
+                    preview_h = int(w_mm * MM_TO_PX)
+
+                    img_resized = img_rotated.resize((preview_w, preview_h), Image.LANCZOS)
+                    preview_img.paste(img_resized, (preview_x, preview_y))
+
+                else:
+                    # 无旋转，直接绘制
+                    c.drawImage(material_path, x_mm * mm, pdf_y_mm * mm,
+                              width=w_mm * mm, height=h_mm * mm,
+                              preserveAspectRatio=False)
+
+                    # 绘制到预览图
+                    preview_x = int(x_mm * MM_TO_PX)
+                    preview_y = int(y_mm * MM_TO_PX)
+                    preview_w = int(w_mm * MM_TO_PX)
+                    preview_h = int(h_mm * MM_TO_PX)
+
+                    # 调整图片大小并粘贴到预览图
+                    img_resized = img.resize((preview_w, preview_h), Image.LANCZOS)
+                    preview_img.paste(img_resized, (preview_x, preview_y))
 
             except Exception as e:
                 print(f"Error processing material {material_id}: {e}")

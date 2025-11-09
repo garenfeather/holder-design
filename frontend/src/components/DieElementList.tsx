@@ -244,14 +244,8 @@ export const DieElementList: React.FC = () => {
             elements.map((element) => (
               <div
                 key={element.id}
-                className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow"
+                className="border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow"
               >
-                {/* 元素预览图 */}
-                <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                  <Scissors className="w-8 h-8 text-gray-400" />
-                </div>
-
-                {/* 元素信息 */}
                 <div className="space-y-1">
                   <h3 className="font-semibold text-gray-900 text-sm">{element.name}</h3>
                   <div className="text-xs text-gray-600">
