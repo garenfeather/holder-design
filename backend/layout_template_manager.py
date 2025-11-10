@@ -12,6 +12,7 @@ import base64
 from io import BytesIO
 import psd_layout_parser
 import die_manager
+from psd_layout_processor import psd_layout_processor
 
 
 class LayoutTemplateManager:
@@ -83,14 +84,26 @@ class LayoutTemplateManager:
             return None
 
     def delete_template(self, template_id: str) -> bool:
-        """删除模版"""
+        """删除模版（包括关联的布局PSD文件）"""
         template_path = os.path.join(self.storage_dir, f"{template_id}.json")
 
         if not os.path.exists(template_path):
             return False
 
         try:
+            # 读取模板信息，获取布局PSD文件名
+            template = self.get_template(template_id)
+
+            # 删除模板JSON文件
             os.remove(template_path)
+
+            # 删除布局PSD文件（如果存在）
+            if template and template.get('layoutPsdFileName'):
+                layout_psd_path = os.path.join(self.storage_dir, template['layoutPsdFileName'])
+                if os.path.exists(layout_psd_path):
+                    os.remove(layout_psd_path)
+                    print(f"✓ 已删除布局PSD: {template['layoutPsdFileName']}")
+
             return True
         except Exception as e:
             print(f"Error deleting template {template_id}: {e}")
@@ -144,21 +157,36 @@ class LayoutTemplateManager:
                 'layerIndex': matched['layer_index']
             })
 
-        # 6. 生成预览图
+        # 6. 生成白色填充的布局PSD
+        layout_psd_filename = f"{template_id}_layout.psd"
+        layout_psd_path = os.path.join(self.storage_dir, layout_psd_filename)
+
+        print(f"\n🎨 生成白色填充布局PSD...")
+        layout_success = psd_layout_processor.create_white_filled_layout_psd(
+            input_psd_path=psd_file_path,
+            output_psd_path=layout_psd_path
+        )
+
+        if not layout_success:
+            print(f"⚠️  布局PSD生成失败，但模板仍会创建")
+            layout_psd_filename = None
+
+        # 7. 生成预览图
         preview_image = psd_layout_parser.generate_preview_image(
             psd_info['canvas_size'],
             elements
         )
 
-        # 7. 确定模板名称
+        # 8. 确定模板名称
         if not name:
             name = os.path.splitext(os.path.basename(psd_file_path))[0]
 
-        # 8. 保存模板
+        # 9. 保存模板
         template = {
             'id': template_id,
             'name': name,
             'psdFileName': os.path.basename(psd_file_path),
+            'layoutPsdFileName': layout_psd_filename,  # 新增：布局PSD文件名
             'canvasSize': psd_info['canvas_size'],
             'elements': elements,
             'previewImage': preview_image,

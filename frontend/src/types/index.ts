@@ -171,15 +171,11 @@ export interface MaterialMapping {
   elementId: string; // 刀模元素ID
 }
 
-export interface PrintMaterial {
+// 排版成品
+export interface PrintArrangement {
   id: string;
   name: string;
-  templateId: string;
-  templateName: string;
-  pdfFileName: string;
-  pdfFilePath: string;
-  previewImage: string; // Base64 image
-  fileSize: number;
-  materialMappings: MaterialMapping[];
+  psdFileName: string;
+  previewFileName: string | null;
   createdAt: string;
 }

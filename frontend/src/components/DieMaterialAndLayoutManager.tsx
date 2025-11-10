@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Image, Trash2, ChevronDown, ChevronRight, FileText, Layout, FileImage } from 'lucide-react';
+import { Image, Trash2, ChevronDown, ChevronRight, Layout, Download, FileText } from 'lucide-react';
 import { apiService } from '../services/api.ts';
 import { ConfirmDialog } from './ConfirmDialog.tsx';
 import { TemplateDetailDialog } from './TemplateDetailDialog.tsx';
-import { PrintMaterialDetailDialog } from './PrintMaterialDetailDialog.tsx';
 import { LayoutTemplateUpload } from './LayoutTemplateUpload.tsx';
-import { LayoutTemplate, PrintMaterial } from '../types/index.ts';
+import { LayoutTemplate, PrintArrangement } from '../types/index.ts';
 
 interface DieMaterial {
   id: string;
@@ -51,18 +50,13 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
   const [templates, setTemplates] = useState<LayoutTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<LayoutTemplate | null>(null);
-  const [deleteTemplateConfirm, setDeleteTemplateConfirm] = useState<{ show: boolean; template: LayoutTemplate | null }>({
-    show: false,
-    template: null,
-  });
 
-  // 打印素材相关状态
-  const [printMaterials, setPrintMaterials] = useState<PrintMaterial[]>([]);
-  const [printMaterialsLoading, setPrintMaterialsLoading] = useState(true);
-  const [selectedPrintMaterial, setSelectedPrintMaterial] = useState<PrintMaterial | null>(null);
-  const [deletePrintMaterialConfirm, setDeletePrintMaterialConfirm] = useState<{ show: boolean; printMaterial: PrintMaterial | null }>({
+  // 排版成品相关状态
+  const [arrangements, setArrangements] = useState<PrintArrangement[]>([]);
+  const [arrangementsLoading, setArrangementsLoading] = useState(true);
+  const [deleteArrangementConfirm, setDeleteArrangementConfirm] = useState<{ show: boolean; arrangement: PrintArrangement | null }>({
     show: false,
-    printMaterial: null,
+    arrangement: null,
   });
 
   // 加载刀模素材数据
@@ -96,25 +90,25 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
     }
   };
 
-  // 加载打印素材
-  const loadPrintMaterials = async () => {
-    setPrintMaterialsLoading(true);
+  // 加载排版成品
+  const loadArrangements = async () => {
+    setArrangementsLoading(true);
     try {
-      const response = await apiService.getPrintMaterials();
+      const response = await apiService.getPrintArrangements();
       if (response.success && response.data) {
-        setPrintMaterials(response.data);
+        setArrangements(response.data);
       }
     } catch (error) {
-      console.error('加载打印素材列表失败:', error);
+      console.error('加载排版成品列表失败:', error);
     } finally {
-      setPrintMaterialsLoading(false);
+      setArrangementsLoading(false);
     }
   };
 
   useEffect(() => {
     loadMaterials();
     loadTemplates();
-    loadPrintMaterials();
+    loadArrangements();
   }, []);
 
   // 监听打印素材创建事件
@@ -151,56 +145,36 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
 
   // 下载刀模素材
   // 删除模版
-  const handleDeleteTemplate = (template: LayoutTemplate) => {
-    setDeleteTemplateConfirm({ show: true, template });
-  };
-
-  const confirmDeleteTemplate = async () => {
-    if (!deleteTemplateConfirm.template) return;
-
+  const handleDeleteTemplate = async (template: LayoutTemplate) => {
     try {
-      const response = await apiService.deleteLayoutTemplate(deleteTemplateConfirm.template.id);
+      const response = await apiService.deleteLayoutTemplate(template.id);
       if (response.success) {
         await loadTemplates();
+        setSelectedTemplate(null);
       }
     } catch (error) {
       console.error('删除模版失败:', error);
-    } finally {
-      setDeleteTemplateConfirm({ show: false, template: null });
-      setSelectedTemplate(null);
     }
   };
 
-  // 删除打印素材
-  const handleDeletePrintMaterial = (printMaterial: PrintMaterial) => {
-    setDeletePrintMaterialConfirm({ show: true, printMaterial });
+  // 删除排版成品
+  const handleDeleteArrangement = (arrangement: PrintArrangement) => {
+    setDeleteArrangementConfirm({ show: true, arrangement });
   };
 
-  const confirmDeletePrintMaterial = async () => {
-    if (!deletePrintMaterialConfirm.printMaterial) return;
+  const confirmDeleteArrangement = async () => {
+    if (!deleteArrangementConfirm.arrangement) return;
 
     try {
-      const response = await apiService.deletePrintMaterial(deletePrintMaterialConfirm.printMaterial.id);
+      const response = await apiService.deletePrintArrangement(deleteArrangementConfirm.arrangement.id);
       if (response.success) {
-        await loadPrintMaterials();
+        await loadArrangements();
       }
     } catch (error) {
-      console.error('删除打印素材失败:', error);
+      console.error('删除排版成品失败:', error);
     } finally {
-      setDeletePrintMaterialConfirm({ show: false, printMaterial: null });
-      setSelectedPrintMaterial(null);
+      setDeleteArrangementConfirm({ show: false, arrangement: null });
     }
-  };
-
-  // 下载打印素材PDF
-  const handleDownloadPrintMaterialPDF = (printMaterialId: string) => {
-    const url = apiService.getPrintMaterialPdfUrl(printMaterialId);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `print_material_${printMaterialId}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   // 使用模板
@@ -212,12 +186,6 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   return (
     <div className="space-y-6">
       {/* 头部 */}
@@ -225,7 +193,7 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
         <div>
           <h2 className="text-2xl font-bold text-gray-900">刀模素材与排版管理</h2>
           <p className="text-sm text-gray-500 mt-1">
-            管理刀模素材、布局模版和打印素材
+            管理刀模素材与布局模版
           </p>
         </div>
       </div>
@@ -383,52 +351,77 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
           )}
         </div>
 
-        {/* 第3列：打印素材 */}
+        {/* 第3列：排版成品 */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">打印素材</h3>
+          <h3 className="text-lg font-semibold text-gray-900">排版成品</h3>
 
-          {printMaterialsLoading ? (
+          {arrangementsLoading ? (
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
               <p className="mt-2 text-gray-500">加载中...</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-[800px] overflow-y-auto">
-              {printMaterials.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-                  <FileImage className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              {arrangements.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center">
+                  <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    还没有打印素材
+                    还没有排版成品
                   </h3>
                   <p className="text-gray-500 text-sm">
-                    使用布局模版填充素材后生成打印PDF
+                    前往打印排版编辑器保存排版成品
                   </p>
                 </div>
               ) : (
-                printMaterials.map((printMaterial) => (
+                arrangements.map((arrangement) => (
                   <div
-                    key={printMaterial.id}
-                    className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => setSelectedPrintMaterial(printMaterial)}
+                    key={arrangement.id}
+                    className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                   >
                     {/* 预览图 */}
-                    <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
-                      <img
-                        src={printMaterial.previewImage}
-                        alt={printMaterial.name}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-
-                    {/* 信息 */}
-                    <div className="p-3">
-                      <h4 className="font-medium text-gray-900 text-sm truncate">{printMaterial.name}</h4>
-                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                        <span>模版: {printMaterial.templateName}</span>
+                    {arrangement.previewFileName && (
+                      <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
+                        <img
+                          src={apiService.getPrintArrangementPreviewUrl(arrangement.id)}
+                          alt={arrangement.name}
+                          className="w-full h-full object-contain"
+                        />
                       </div>
-                      <div className="flex items-center justify-between mt-1 text-xs text-gray-400">
-                        <span>{formatFileSize(printMaterial.fileSize)}</span>
-                        <span>{new Date(printMaterial.createdAt).toLocaleDateString('zh-CN')}</span>
+                    )}
+
+                    {/* 信息与操作 */}
+                    <div className="p-3">
+                      <h4 className="font-medium text-gray-900 text-sm truncate">{arrangement.name}</h4>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {new Date(arrangement.createdAt).toLocaleDateString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+
+                      {/* 操作按钮 */}
+                      <div className="flex gap-2 mt-3">
+                        <a
+                          href={apiService.getPrintArrangementDownloadUrl(arrangement.id)}
+                          download
+                          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded hover:bg-primary-700 transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          下载PSD
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteArrangement(arrangement);
+                          }}
+                          className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded hover:bg-red-100 transition-colors"
+                          title="删除"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -437,6 +430,7 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
             </div>
           )}
         </div>
+
       </div>
 
       {/* 删除刀模素材确认对话框 */}
@@ -453,30 +447,16 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
         />
       )}
 
-      {/* 删除模版确认对话框 */}
-      {deleteTemplateConfirm.show && deleteTemplateConfirm.template && (
+      {/* 删除排版成品确认对话框 */}
+      {deleteArrangementConfirm.show && deleteArrangementConfirm.arrangement && (
         <ConfirmDialog
-          isOpen={deleteTemplateConfirm.show}
-          title="删除布局模版"
-          message={`确定要删除模版"${deleteTemplateConfirm.template.name}"吗？此操作无法恢复。`}
+          isOpen={deleteArrangementConfirm.show}
+          title="删除排版成品"
+          message={`确定要删除排版成品"${deleteArrangementConfirm.arrangement.name}"吗？此操作无法恢复。`}
           confirmText="删除"
           cancelText="取消"
-          onConfirm={confirmDeleteTemplate}
-          onCancel={() => setDeleteTemplateConfirm({ show: false, template: null })}
-          type="danger"
-        />
-      )}
-
-      {/* 删除打印素材确认对话框 */}
-      {deletePrintMaterialConfirm.show && deletePrintMaterialConfirm.printMaterial && (
-        <ConfirmDialog
-          isOpen={deletePrintMaterialConfirm.show}
-          title="删除打印素材"
-          message={`确定要删除打印素材"${deletePrintMaterialConfirm.printMaterial.name}"吗？此操作无法恢复。`}
-          confirmText="删除"
-          cancelText="取消"
-          onConfirm={confirmDeletePrintMaterial}
-          onCancel={() => setDeletePrintMaterialConfirm({ show: false, printMaterial: null })}
+          onConfirm={confirmDeleteArrangement}
+          onCancel={() => setDeleteArrangementConfirm({ show: false, arrangement: null })}
           type="danger"
         />
       )}
@@ -492,16 +472,6 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
         />
       )}
 
-      {/* 打印素材详情对话框 */}
-      {selectedPrintMaterial && (
-        <PrintMaterialDetailDialog
-          isOpen={true}
-          printMaterial={selectedPrintMaterial}
-          onClose={() => setSelectedPrintMaterial(null)}
-          onDownload={handleDownloadPrintMaterialPDF}
-          onDelete={handleDeletePrintMaterial}
-        />
-      )}
     </div>
   );
 };

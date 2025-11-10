@@ -629,9 +629,19 @@ class ApiService {
     }
   }
 
-  // 获取刀模素材文件URL
-  getDieMaterialUrl(materialId: string): string {
-    return `${API_BASE_URL}/api/die-materials/${materialId}`;
+  // 获取刀模素材文件URL，支持旋转后临时预览
+  getDieMaterialUrl(materialId: string, options?: { rotate?: number }): string {
+    const params = new URLSearchParams();
+
+    if (options?.rotate !== undefined) {
+      const normalized = ((options.rotate % 360) + 360) % 360;
+      if (normalized !== 0) {
+        params.set('rotate', normalized.toString());
+      }
+    }
+
+    const query = params.toString();
+    return `${API_BASE_URL}/api/die-materials/${materialId}${query ? `?${query}` : ''}`;
   }
 
   // 删除刀模素材
@@ -678,36 +688,38 @@ class ApiService {
     return this.delete(`/api/layout-templates/${templateId}`);
   }
 
-  // ========== 打印素材API ==========
+  // ============================================================
+  // 排版成品API
+  // ============================================================
 
-  // 创建打印素材（生成PDF）
-  async createPrintMaterial(data: {
-    name: string;
-    templateId: string;
-    materialMappings: any[];
-  }): Promise<ApiResponse<any>> {
-    return this.post('/api/print-materials', data);
+  // 创建排版成品
+  async createPrintArrangement(templateId: string, materialMappings: Record<string, string>): Promise<ApiResponse<any>> {
+    return this.post('/api/print-arrangements', {
+      templateId,
+      materialMappings
+    });
   }
 
-  // 获取所有打印素材
-  async getPrintMaterials(): Promise<ApiResponse<any[]>> {
-    return this.get('/api/print-materials');
+  // 获取所有排版成品
+  async getPrintArrangements(): Promise<ApiResponse<any>> {
+    return this.get('/api/print-arrangements');
   }
 
-  // 获取单个打印素材
-  async getPrintMaterial(materialId: string): Promise<ApiResponse<any>> {
-    return this.get(`/api/print-materials/${materialId}`);
+  // 获取排版成品预览图URL
+  getPrintArrangementPreviewUrl(arrangementId: string): string {
+    return `${API_BASE_URL}/api/print-arrangements/${arrangementId}/preview`;
   }
 
-  // 下载打印素材PDF
-  getPrintMaterialPdfUrl(materialId: string): string {
-    return `${API_BASE_URL}/api/print-materials/${materialId}/pdf`;
+  // 获取排版成品下载URL
+  getPrintArrangementDownloadUrl(arrangementId: string): string {
+    return `${API_BASE_URL}/api/print-arrangements/${arrangementId}/download`;
   }
 
-  // 删除打印素材
-  async deletePrintMaterial(materialId: string): Promise<ApiResponse<any>> {
-    return this.delete(`/api/print-materials/${materialId}`);
+  // 删除排版成品
+  async deletePrintArrangement(arrangementId: string): Promise<ApiResponse<any>> {
+    return this.delete(`/api/print-arrangements/${arrangementId}`);
   }
+
 }
 
 export const apiService = new ApiService();

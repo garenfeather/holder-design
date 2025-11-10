@@ -1,58 +1,26 @@
 [
   {
-    "id": "2bed9c5f-ad3d-48c5-9716-4ee26fc592a9",
-    "elementId": "818d7426-4e7e-40db-98a2-61360eb7c862",
+    "id": "67e7b944-5310-4df0-96b1-af5c9dc56662",
+    "elementId": "a108bc1b-365e-44b8-8913-43e1396ddfbb",
     "elementName": "蝴蝶结",
-    "fileName": "f3b112dc-21d7-4e1a-ba83-c246a8f3751a.png",
-    "filePath": "materials/818d7426-4e7e-40db-98a2-61360eb7c862/f3b112dc-21d7-4e1a-ba83-c246a8f3751a.png",
+    "fileName": "9ad4f871-f220-4f42-8dca-fd3ee019dffa.png",
+    "filePath": "materials/a108bc1b-365e-44b8-8913-43e1396ddfbb/9ad4f871-f220-4f42-8dca-fd3ee019dffa.png",
     "cutSize": {
       "width": 5.72,
-      "height": 7.61
+      "height": 7.6
     },
     "referenceSize": {
       "width": 5.4,
       "height": 7.3
     },
-    "createdAt": "2025-11-07T05:26:11.474981"
+    "createdAt": "2025-11-10T08:56:38.508468"
   },
   {
-    "id": "304ed17b-d4b2-4513-944a-13e9296b2ef5",
-    "elementId": "db47432f-ce3c-45f2-866f-93e760940437",
-    "elementName": "小卡",
-    "fileName": "3768688e-aab5-4b92-bdf1-1b30ae86b5a6.png",
-    "filePath": "materials/db47432f-ce3c-45f2-866f-93e760940437/3768688e-aab5-4b92-bdf1-1b30ae86b5a6.png",
-    "cutSize": {
-      "width": 8.9,
-      "height": 5.72
-    },
-    "referenceSize": {
-      "width": 8.5,
-      "height": 5.3
-    },
-    "createdAt": "2025-11-09T16:03:07.302002"
-  },
-  {
-    "id": "f7cdc370-e9eb-4d7b-82e2-ea17a21e15f2",
-    "elementId": "4fc6b749-f798-44c3-9b4a-64945ee70cab",
-    "elementName": "小卡外框",
-    "fileName": "ca3a93f4-4c52-4365-9e96-c898b2a979ea.png",
-    "filePath": "materials/4fc6b749-f798-44c3-9b4a-64945ee70cab/ca3a93f4-4c52-4365-9e96-c898b2a979ea.png",
-    "cutSize": {
-      "width": 6.02,
-      "height": 9.53
-    },
-    "referenceSize": {
-      "width": 5.8,
-      "height": 9.3
-    },
-    "createdAt": "2025-11-09T16:03:44.755439"
-  },
-  {
-    "id": "41275429-4c72-4cd9-8282-72f7e375bcff",
-    "elementId": "a9c8e613-8f81-4f09-8d07-89f9d448f2ea",
+    "id": "581d47d7-6f7b-46b1-8c89-a06c65ea9777",
+    "elementId": "a5513f96-2f9b-4956-9352-4055b565499c",
     "elementName": "5cm圆",
-    "fileName": "63b1f576-b7bb-4a50-a1e4-befddd094a17.png",
-    "filePath": "materials/a9c8e613-8f81-4f09-8d07-89f9d448f2ea/63b1f576-b7bb-4a50-a1e4-befddd094a17.png",
+    "fileName": "57b35220-1683-4fa0-a24f-de41a5ae52f6.png",
+    "filePath": "materials/a5513f96-2f9b-4956-9352-4055b565499c/57b35220-1683-4fa0-a24f-de41a5ae52f6.png",
     "cutSize": {
       "width": 5.31,
       "height": 5.31
@@ -61,6 +29,54 @@
       "width": 5,
       "height": 5
     },
-    "createdAt": "2025-11-09T16:04:01.879521"
+    "createdAt": "2025-11-10T09:58:08.954331"
+  },
+  {
+    "id": "a631211e-8d2d-407f-ab20-b6401d00949a",
+    "elementId": "cc61eaa1-d0d4-4325-a66c-15efe678c177",
+    "elementName": "小卡",
+    "fileName": "edc3292a-fb00-44f4-b241-cbc1bfbf9c3d.png",
+    "filePath": "materials/cc61eaa1-d0d4-4325-a66c-15efe678c177/edc3292a-fb00-44f4-b241-cbc1bfbf9c3d.png",
+    "cutSize": {
+      "width": 8.9,
+      "height": 5.72
+    },
+    "referenceSize": {
+      "width": 8.5,
+      "height": 5.3
+    },
+    "createdAt": "2025-11-10T09:58:24.362488"
+  },
+  {
+    "id": "c24a6eca-9ffc-4101-8d15-9edc1cf9e10c",
+    "elementId": "352b2bc7-15aa-4d3b-84c5-750618144b17",
+    "elementName": "小卡外框",
+    "fileName": "72950289-ed1f-49fd-a22f-cf3d91bc1dba.png",
+    "filePath": "materials/352b2bc7-15aa-4d3b-84c5-750618144b17/72950289-ed1f-49fd-a22f-cf3d91bc1dba.png",
+    "cutSize": {
+      "width": 6.02,
+      "height": 9.53
+    },
+    "referenceSize": {
+      "width": 5.8,
+      "height": 9.3
+    },
+    "createdAt": "2025-11-10T09:58:39.111426"
+  },
+  {
+    "id": "3cacdf8a-641c-4f07-86d7-c0b1f7a874e4",
+    "elementId": "cc61eaa1-d0d4-4325-a66c-15efe678c177",
+    "elementName": "小卡",
+    "fileName": "cfefa5be-a4a9-41c9-82e6-cb533cd5b5cb.png",
+    "filePath": "materials/cc61eaa1-d0d4-4325-a66c-15efe678c177/cfefa5be-a4a9-41c9-82e6-cb533cd5b5cb.png",
+    "cutSize": {
+      "width": 8.9,
+      "height": 5.72
+    },
+    "referenceSize": {
+      "width": 8.5,
+      "height": 5.3
+    },
+    "createdAt": "2025-11-10T09:59:03.979786"
   }
 ]

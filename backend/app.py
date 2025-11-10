@@ -15,6 +15,40 @@ import tempfile
 import sys
 from pathlib import Path
 import traceback
+import io
+from collections import OrderedDict
+
+from PIL import Image
+
+ROTATED_MATERIAL_CACHE_MAX_ITEMS = 32
+_rotated_material_cache = OrderedDict()
+
+
+def _get_rotated_material_bytes(material_id: str, file_path: str, rotate_angle: int) -> bytes:
+    """返回旋转后素材的缓存字节，必要时生成并写入LRU缓存。"""
+    cache_key = (material_id, rotate_angle)
+
+    try:
+        file_mtime = os.path.getmtime(file_path)
+    except OSError:
+        file_mtime = None
+
+    cached = _rotated_material_cache.get(cache_key)
+    if cached and cached.get('mtime') == file_mtime:
+        _rotated_material_cache.move_to_end(cache_key)
+        return cached['data']
+
+    with Image.open(file_path) as img:
+        rotated = img.rotate(-rotate_angle, expand=True)
+        buffer = io.BytesIO()
+        rotated.save(buffer, format='PNG')
+        data = buffer.getvalue()
+
+    _rotated_material_cache[cache_key] = {'data': data, 'mtime': file_mtime}
+    if len(_rotated_material_cache) > ROTATED_MATERIAL_CACHE_MAX_ITEMS:
+        _rotated_material_cache.popitem(last=False)
+
+    return data
 
 # 添加backend目录到Python路径
 BACKEND_DIR = Path(__file__).parent
@@ -24,7 +58,7 @@ from config import CONFIG, settings, processing_config
 from processor_core import processor_core
 from die_manager import die_manager
 from layout_template_manager import LayoutTemplateManager
-from print_material_generator import PrintMaterialGenerator
+from print_arrangement_manager import print_arrangement_manager
 
 app = Flask(__name__)
 CORS(app)  # 启用跨域支持
@@ -966,14 +1000,35 @@ def get_die_materials():
 
 @app.route('/api/die-materials/<material_id>', methods=['GET'])
 def get_die_material_file(material_id):
-    """获取刀模素材文件"""
+    """获取刀模素材文件，支持按需旋转"""
     try:
         file_path = die_manager.get_material_file_path(material_id)
 
         if not file_path:
             return json_error('素材不存在', 404)
 
-        return send_file(file_path, mimetype='image/png')
+        rotate_param = request.args.get('rotate')
+        rotate_angle = 0
+
+        if rotate_param is not None:
+            try:
+                rotate_angle = int(float(rotate_param)) % 360
+            except ValueError:
+                return json_error('rotate参数必须是数字', 400)
+
+            if rotate_angle % 90 != 0:
+                return json_error('rotate参数仅支持90°的倍数', 400)
+
+        if rotate_angle == 0:
+            return send_file(file_path, mimetype='image/png')
+
+        # 使用内存缓存避免重复旋转计算
+        rotated_bytes = _get_rotated_material_bytes(material_id, file_path, rotate_angle)
+        buffer = io.BytesIO(rotated_bytes)
+
+        response = send_file(buffer, mimetype='image/png')
+        response.headers['Cache-Control'] = 'no-store'
+        return response
 
     except Exception as e:
         print(f"获取刀模素材文件时出错: {str(e)}")
@@ -1158,128 +1213,132 @@ def upload_psd_template():
 
 
 # ============================================================
-# 打印素材API
+# 排版成品API
 # ============================================================
 
-print_material_generator = PrintMaterialGenerator()
-
-@app.route('/api/print-materials', methods=['POST'])
-def create_print_material():
-    """创建打印素材（生成PDF）"""
+@app.route('/api/print-arrangements', methods=['POST'])
+def create_print_arrangement():
+    """创建排版成品"""
     try:
         data = request.get_json()
 
         if not data:
             return json_error('请求数据为空', 400)
 
-        name = data.get('name')
         template_id = data.get('templateId')
-        material_mappings = data.get('materialMappings', [])
-
-        if not name:
-            return json_error('打印素材名称不能为空', 400)
+        material_mappings = data.get('materialMappings', {})
 
         if not template_id:
-            return json_error('模版ID不能为空', 400)
+            return json_error('缺少模板ID', 400)
 
-        # 获取模版
-        template = layout_template_manager.get_template(template_id)
-        if not template:
-            return json_error('模版不存在', 404)
+        print(f"接收到创建排版成品请求:")
+        print(f"  模板ID: {template_id}")
+        print(f"  素材映射: {len(material_mappings)} 个")
 
-        # 生成打印素材
-        print_material = print_material_generator.create_print_material(
-            name, template, material_mappings
+        # 创建排版成品
+        arrangement = print_arrangement_manager.create_arrangement(
+            template_id=template_id,
+            material_mappings=material_mappings
         )
+
+        if not arrangement:
+            return json_error('创建排版成品失败', 500)
 
         return jsonify({
             'success': True,
-            'data': print_material
+            'data': arrangement
         })
 
     except Exception as e:
-        print(f"创建打印素材时出错: {str(e)}")
+        print(f"创建排版成品时出错: {str(e)}")
         traceback.print_exc()
         return json_error(f'服务器错误: {str(e)}', 500)
 
 
-@app.route('/api/print-materials', methods=['GET'])
-def get_print_materials():
-    """获取所有打印素材"""
+@app.route('/api/print-arrangements', methods=['GET'])
+def get_print_arrangements():
+    """获取所有排版成品列表"""
     try:
-        materials = print_material_generator.get_all_print_materials()
+        arrangements = print_arrangement_manager.get_all_arrangements()
 
         return jsonify({
             'success': True,
-            'data': materials
+            'data': arrangements
         })
 
     except Exception as e:
-        print(f"获取打印素材列表时出错: {str(e)}")
+        print(f"获取排版成品列表时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
 
 
-@app.route('/api/print-materials/<material_id>', methods=['GET'])
-def get_print_material(material_id):
-    """获取单个打印素材"""
+@app.route('/api/print-arrangements/<arrangement_id>/preview', methods=['GET'])
+def get_print_arrangement_preview(arrangement_id):
+    """获取排版成品预览图"""
     try:
-        material = print_material_generator.get_print_material(material_id)
+        arrangement = print_arrangement_manager.get_arrangement(arrangement_id)
 
-        if not material:
-            return json_error('打印素材不存在', 404)
+        if not arrangement:
+            return json_error('排版成品不存在', 404)
 
-        return jsonify({
-            'success': True,
-            'data': material
-        })
+        if not arrangement.get('previewFileName'):
+            return json_error('预览图不存在', 404)
+
+        # 构建预览图路径
+        preview_path = print_arrangement_manager.storage_dir / arrangement['previewFileName']
+
+        if not preview_path.exists():
+            return json_error('预览图文件不存在', 404)
+
+        return send_file(preview_path, mimetype='image/png')
 
     except Exception as e:
-        print(f"获取打印素材时出错: {str(e)}")
+        print(f"获取排版成品预览图时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
 
 
-@app.route('/api/print-materials/<material_id>/pdf', methods=['GET'])
-def download_print_material_pdf(material_id):
-    """下载打印素材PDF"""
+@app.route('/api/print-arrangements/<arrangement_id>/download', methods=['GET'])
+def download_print_arrangement(arrangement_id):
+    """下载排版成品PSD文件"""
     try:
-        material = print_material_generator.get_print_material(material_id)
+        arrangement = print_arrangement_manager.get_arrangement(arrangement_id)
 
-        if not material:
-            return json_error('打印素材不存在', 404)
+        if not arrangement:
+            return json_error('排版成品不存在', 404)
 
-        pdf_path = material.get('pdfFilePath')
+        # 构建PSD文件路径
+        psd_path = print_arrangement_manager.storage_dir / arrangement['psdFileName']
 
-        if not pdf_path or not os.path.exists(pdf_path):
-            return json_error('PDF文件不存在', 404)
+        if not psd_path.exists():
+            return json_error('PSD文件不存在', 404)
 
         return send_file(
-            pdf_path,
-            mimetype='application/pdf',
+            psd_path,
             as_attachment=True,
-            download_name=material.get('pdfFileName', 'print.pdf')
+            download_name=f"{arrangement['name']}.psd",
+            mimetype="application/octet-stream"
         )
 
     except Exception as e:
-        print(f"下载打印素材PDF时出错: {str(e)}")
+        print(f"下载排版成品PSD时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
 
 
-@app.route('/api/print-materials/<material_id>', methods=['DELETE'])
-def delete_print_material(material_id):
-    """删除打印素材"""
+@app.route('/api/print-arrangements/<arrangement_id>', methods=['DELETE'])
+def delete_print_arrangement(arrangement_id):
+    """删除排版成品"""
     try:
-        success = print_material_generator.delete_print_material(material_id)
+        success = print_arrangement_manager.delete_arrangement(arrangement_id)
 
         if not success:
-            return json_error('打印素材不存在', 404)
+            return json_error('排版成品不存在', 404)
 
         return jsonify({
             'success': True,
-            'message': '打印素材删除成功'
+            'message': '排版成品删除成功'
         })
 
     except Exception as e:
-        print(f"删除打印素材时出错: {str(e)}")
+        print(f"删除排版成品时出错: {str(e)}")
         return json_error(f'服务器错误: {str(e)}', 500)
 
 

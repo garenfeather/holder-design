@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ZoomIn, ZoomOut } from 'lucide-react';
+import { X } from 'lucide-react';
 import { LayoutTemplate } from '../types/index.ts';
 import { apiService } from '../services/api.ts';
 
@@ -32,7 +32,10 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
   const [materialMappings, setMaterialMappings] = useState<Map<string, string>>(new Map());
   const [availableMaterials, setAvailableMaterials] = useState<DieMaterial[]>([]);
   const [materialCache, setMaterialCache] = useState<Map<string, DieMaterial>>(new Map()); // 缓存所有素材
-  const [scale, setScale] = useState(1);
+  const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const SLOT_OVERDRAW_PX = 2; // 覆盖底层描边，避免浮点取整带来的缝隙
+  // 排版画布保持原尺寸显示（不再支持缩放）
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasImgRef = useRef<HTMLImageElement>(null);
@@ -107,14 +110,14 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
     const rect = img.getBoundingClientRect();
 
     // 计算点击位置（相对于图片）
-    const clickX = (event.clientX - rect.left) / scale;
-    const clickY = (event.clientY - rect.top) / scale;
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
 
     // 计算图片显示尺寸与实际画布尺寸的比例
     const canvasSize = template.canvasSize;
     if (!canvasSize) return;
 
-    const displayScale = img.clientWidth / scale / canvasSize.width;
+    const displayScale = img.clientWidth / canvasSize.width;
 
     // 查找点击的元素
     for (const element of template.elements) {
@@ -136,13 +139,6 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
 
     // 如果没有点击到任何元素，取消选择
     setSelectedElementId(null);
-  };
-
-  // 滚轮缩放
-  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const delta = event.deltaY > 0 ? 0.9 : 1.1;
-    setScale(prev => Math.max(0.5, Math.min(3, prev * delta)));
   };
 
   // 选择素材
@@ -171,50 +167,33 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
     setMaterialMappings(newMappings);
   };
 
-  // 缩放控制
-  const handleZoomIn = () => {
-    setScale(prev => Math.min(3, prev * 1.2));
-  };
+  // 保存排版成品
+  const handleSaveArrangement = async () => {
+    if (!template || materialMappings.size === 0) {
+      alert('请至少放置一个素材后再保存');
+      return;
+    }
 
-  const handleZoomOut = () => {
-    setScale(prev => Math.max(0.5, prev / 1.2));
-  };
-
-  const handleResetZoom = () => {
-    setScale(1);
-  };
-
-  // 保存
-  const handleSave = async () => {
-    if (!template) return;
-
-    const name = prompt('请输入打印素材名称');
-    if (!name) return;
-
-    // 转换materialMappings为API格式
-    const mappings = Array.from(materialMappings.entries()).map(
-      ([layoutElementId, materialId]) => ({
-        layoutElementId,
-        materialId
-      })
-    );
-
+    setSaving(true);
     try {
-      const response = await apiService.createPrintMaterial({
-        name,
-        templateId: template.id,
-        materialMappings: mappings
+      // 将 Map 转换为普通对象
+      const mappingsObj: Record<string, string> = {};
+      materialMappings.forEach((materialId, layoutElementId) => {
+        mappingsObj[layoutElementId] = materialId;
       });
 
+      const response = await apiService.createPrintArrangement(template.id, mappingsObj);
       if (response.success) {
-        alert('打印素材创建成功！');
+        alert('排版成品保存成功！');
         onClose();
       } else {
         alert(`保存失败: ${response.error || '未知错误'}`);
       }
     } catch (error) {
-      console.error('保存失败:', error);
-      alert('保存失败: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('保存排版成品失败:', error);
+      alert('保存失败，请稍后重试');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -259,32 +238,23 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
         </div>
 
         <div className="flex items-center gap-4">
-          {/* 缩放控制 */}
-          <div className="flex items-center gap-2 border rounded-lg px-3 py-1">
-            <button
-              onClick={handleZoomOut}
-              className="p-1 hover:bg-gray-100 rounded"
-              title="缩小"
-            >
-              <ZoomOut size={18} />
-            </button>
-            <span className="text-sm text-gray-600 min-w-[60px] text-center">
-              {(scale * 100).toFixed(0)}%
-            </span>
-            <button
-              onClick={handleZoomIn}
-              className="p-1 hover:bg-gray-100 rounded"
-              title="放大"
-            >
-              <ZoomIn size={18} />
-            </button>
-            <button
-              onClick={handleResetZoom}
-              className="text-xs text-blue-600 hover:underline"
-            >
-              重置
-            </button>
-          </div>
+          {/* 保存按钮 */}
+          <button
+            onClick={handleSaveArrangement}
+            disabled={saving || materialMappings.size === 0}
+            className={`
+              px-6 py-2 rounded-lg font-medium transition-all
+              ${materialMappings.size === 0
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : saving
+                  ? 'bg-blue-400 text-white cursor-wait'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }
+            `}
+            title={materialMappings.size === 0 ? '请至少放置一个素材' : '保存排版成品'}
+          >
+            {saving ? '保存中...' : '保存排版'}
+          </button>
 
           {/* 关闭按钮 */}
           <button
@@ -370,14 +340,8 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
           <div className="flex-1 overflow-auto p-6">
             <div
               ref={canvasContainerRef}
-              className="relative inline-block"
-              style={{
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
-                cursor: 'crosshair'
-              }}
+              className="relative inline-block cursor-crosshair"
               onClick={handleCanvasClick}
-              onWheel={handleWheel}
             >
               {/* 底层：模板预览图 */}
               <img
@@ -391,15 +355,11 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
               {/* 叠加层：已填充的素材 */}
               {template.canvasSize && template.elements.map((element) => {
                 const materialId = materialMappings.get(element.id);
-                if (!materialId) return null;
 
                 // 优先从缓存中获取素材，如果没有再从当前列表中查找
-                let material = materialCache.get(materialId);
-                if (!material) {
+                let material = materialId ? materialCache.get(materialId) : undefined;
+                if (materialId && !material) {
                   material = availableMaterials.find(m => m.id === materialId);
-                }
-                if (!material) {
-                  return null; // 找不到素材，跳过
                 }
 
                 const imgElement = canvasImgRef.current;
@@ -416,54 +376,74 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
                   [displayWidth, displayHeight] = [displayHeight, displayWidth];
                 }
 
-                // 素材尺寸
-                const materialW = material.cutSize.width; // cm
-                const materialH = material.cutSize.height; // cm
-                // 元素尺寸
-                const elementW = element.cutSize.width; // cm
-                const elementH = element.cutSize.height; // cm
+                let materialUrl: string | null = null;
+                if (material) {
+                  // 素材尺寸
+                  const materialW = material.cutSize.width; // cm
+                  const materialH = material.cutSize.height; // cm
+                  // 元素尺寸
+                  const elementW = element.cutSize.width; // cm
+                  const elementH = element.cutSize.height; // cm
 
-                // 判断素材是否需要旋转：素材a×b，元素b×a
-                const needRotation = (
-                  Math.abs(materialW - elementH) < 0.1 &&
-                  Math.abs(materialH - elementW) < 0.1
-                );
+                  // 判断素材是否需要旋转：素材a×b，元素b×a
+                  const needRotation = (
+                    Math.abs(materialW - elementH) < 0.1 &&
+                    Math.abs(materialH - elementW) < 0.1
+                  );
 
-                const slotRotation = element.rotation ?? 0;
-                const materialRotation = needRotation ? 90 : 0;
-                const totalRotation = (slotRotation + materialRotation) % 360;
-                const hasOddRotation = Math.abs(totalRotation) % 180 !== 0;
+                  const slotRotation = element.rotation ?? 0;
+                  const materialRotation = needRotation ? 90 : 0;
+                  const totalRotation = (slotRotation + materialRotation) % 360;
+                  const normalizedRotation = ((totalRotation % 360) + 360) % 360;
+                  materialUrl = apiService.getDieMaterialUrl(material.id, {
+                    rotate: normalizedRotation
+                  });
+                }
+
+                const isSelected = selectedElementId === element.id;
+                const isHovered = hoveredElementId === element.id;
+                const outline = 'none';
+                const transform = isHovered ? 'scale(1.01)' : 'scale(1)';
+                const shadow = (isSelected || isHovered)
+                  ? `0 0 0 2px rgba(59, 130, 246, ${isSelected ? 0.7 : 0.4})`
+                  : 'none';
+
+                const adjustedLeft = (element.position.x * displayScale) - (SLOT_OVERDRAW_PX / 2);
+                const adjustedTop = (element.position.y * displayScale) - (SLOT_OVERDRAW_PX / 2);
+                const adjustedWidth = displayWidth + SLOT_OVERDRAW_PX;
+                const adjustedHeight = displayHeight + SLOT_OVERDRAW_PX;
 
                 return (
                   <div
                     key={element.id}
-                    className={`
-                      absolute overflow-hidden
-                      ${
-                        selectedElementId === element.id
-                          ? 'ring-4 ring-blue-500'
-                          : 'ring-2 ring-green-500'
-                      }
-                    `}
+                    className="absolute overflow-hidden transition-all duration-200"
                     style={{
-                      left: `${element.position.x * displayScale}px`,
-                      top: `${element.position.y * displayScale}px`,
-                      width: `${displayWidth}px`,
-                      height: `${displayHeight}px`
+                      left: `${adjustedLeft}px`,
+                      top: `${adjustedTop}px`,
+                      width: `${adjustedWidth}px`,
+                      height: `${adjustedHeight}px`,
+                      outline,
+                      outlineOffset: 0,
+                      transform,
+                      boxShadow: shadow,
+                      backgroundColor: materialUrl ? '#fff' : 'transparent'
                     }}
+                    onMouseEnter={() => setHoveredElementId(element.id)}
+                    onMouseLeave={() =>
+                      setHoveredElementId((current) => (current === element.id ? null : current))
+                    }
                   >
-                    {material && (
+                    {materialUrl && (
                       <img
-                        src={apiService.getDieMaterialUrl(material.id)}
+                        src={materialUrl}
                         alt=""
-                        className="absolute object-cover opacity-80"
+                        className="absolute object-cover"
                         style={{
-                          width: hasOddRotation ? `${displayHeight}px` : '100%',
-                          height: hasOddRotation ? `${displayWidth}px` : '100%',
-                          top: '50%',
-                          left: '50%',
-                          transform: `translate(-50%, -50%) rotate(${totalRotation}deg)`,
-                          transformOrigin: 'center center'
+                          width: '100%',
+                          height: '100%',
+                          top: 0,
+                          left: 0,
+                          transform: 'none'
                         }}
                       />
                     )}
@@ -484,13 +464,7 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
                 onClick={onClose}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                取消
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                保存为打印素材
+                关闭
               </button>
             </div>
           </div>

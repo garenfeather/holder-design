@@ -1,58 +1,90 @@
 [
   {
-    "id": "818d7426-4e7e-40db-98a2-61360eb7c862",
+    "id": "a108bc1b-365e-44b8-8913-43e1396ddfbb",
     "name": "蝴蝶结",
     "cutSize": {
       "width": 5.72,
-      "height": 7.61
+      "height": 7.6
+    },
+    "cutSizePixels": {
+      "width": 676,
+      "height": 898
     },
     "referenceSize": {
       "width": 5.4,
       "height": 7.3
     },
-    "createdAt": "2025-11-07T05:24:23.885350",
-    "updatedAt": "2025-11-07T05:24:23.885350"
+    "referenceSizePixels": {
+      "width": 638,
+      "height": 862
+    },
+    "createdAt": "2025-11-10T07:55:49.101477",
+    "updatedAt": "2025-11-10T07:55:49.101477"
   },
   {
-    "id": "db47432f-ce3c-45f2-866f-93e760940437",
-    "name": "小卡",
-    "cutSize": {
-      "width": 8.9,
-      "height": 5.72
-    },
-    "referenceSize": {
-      "width": 8.5,
-      "height": 5.3
-    },
-    "createdAt": "2025-11-09T15:51:59.510175",
-    "updatedAt": "2025-11-09T15:51:59.510175"
-  },
-  {
-    "id": "4fc6b749-f798-44c3-9b4a-64945ee70cab",
-    "name": "小卡外框",
-    "cutSize": {
-      "width": 6.02,
-      "height": 9.53
-    },
-    "referenceSize": {
-      "width": 5.8,
-      "height": 9.3
-    },
-    "createdAt": "2025-11-09T15:53:27.739865",
-    "updatedAt": "2025-11-09T15:53:27.739865"
-  },
-  {
-    "id": "a9c8e613-8f81-4f09-8d07-89f9d448f2ea",
+    "id": "a5513f96-2f9b-4956-9352-4055b565499c",
     "name": "5cm圆",
     "cutSize": {
       "width": 5.31,
       "height": 5.31
     },
+    "cutSizePixels": {
+      "width": 627,
+      "height": 627
+    },
     "referenceSize": {
       "width": 5,
       "height": 5
     },
-    "createdAt": "2025-11-09T15:53:52.205170",
-    "updatedAt": "2025-11-09T15:53:52.205170"
+    "referenceSizePixels": {
+      "width": 591,
+      "height": 591
+    },
+    "createdAt": "2025-11-10T07:57:20.437048",
+    "updatedAt": "2025-11-10T07:57:20.437048"
+  },
+  {
+    "id": "cc61eaa1-d0d4-4325-a66c-15efe678c177",
+    "name": "小卡",
+    "cutSize": {
+      "width": 8.9,
+      "height": 5.72
+    },
+    "cutSizePixels": {
+      "width": 1051,
+      "height": 676
+    },
+    "referenceSize": {
+      "width": 8.5,
+      "height": 5.3
+    },
+    "referenceSizePixels": {
+      "width": 1004,
+      "height": 626
+    },
+    "createdAt": "2025-11-10T07:58:01.345625",
+    "updatedAt": "2025-11-10T07:58:01.345625"
+  },
+  {
+    "id": "352b2bc7-15aa-4d3b-84c5-750618144b17",
+    "name": "小卡外框",
+    "cutSize": {
+      "width": 6.02,
+      "height": 9.53
+    },
+    "cutSizePixels": {
+      "width": 711,
+      "height": 1126
+    },
+    "referenceSize": {
+      "width": 5.8,
+      "height": 9.3
+    },
+    "referenceSizePixels": {
+      "width": 685,
+      "height": 1098
+    },
+    "createdAt": "2025-11-10T07:58:42.695096",
+    "updatedAt": "2025-11-10T07:58:42.695096"
   }
 ]

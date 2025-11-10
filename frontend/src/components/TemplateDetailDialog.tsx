@@ -6,7 +6,7 @@ interface TemplateDetailDialogProps {
   isOpen: boolean;
   template: LayoutTemplate | null;
   onClose: () => void;
-  onDelete: (templateId: string) => void;
+  onDelete: (template: LayoutTemplate) => void;
   onUseTemplate?: (templateId: string) => void;  // 新增：使用模板回调
 }
 
@@ -148,11 +148,7 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
         {/* 底部按钮 */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200">
           <button
-            onClick={() => {
-              if (window.confirm(`确定要删除模版"${template.name}"吗？`)) {
-                onDelete(template.id);
-              }
-            }}
+            onClick={() => onDelete(template)}
             className="flex items-center space-x-2 px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-4 h-4" />

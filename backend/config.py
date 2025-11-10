@@ -42,6 +42,9 @@ class ProcessingConfig(BaseSettings):
     LAYER_CACHE_SIZE: int = Field(100, description="图层缓存大小")
     BUFFER_SIZE: int = Field(8192, description="文件缓冲区大小")
 
+    # 刀模元素配置
+    DIE_ELEMENT_DEFAULT_DPI: int = Field(300, description="刀模元素默认DPI")
+
     class Config:
         env_prefix = "PROCESSING_"
         case_sensitive = False
