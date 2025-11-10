@@ -222,6 +222,15 @@ class PrintArrangementManager:
             if material_img.mode != 'RGBA':
                 material_img = material_img.convert('RGBA')
 
+            # 获取元素的旋转角度
+            rotation = element.get('rotation', 0)
+
+            # 如果有旋转，先旋转素材
+            if rotation != 0:
+                # PIL的rotate是逆时针旋转，所以用负号
+                material_img = material_img.rotate(-rotation, expand=True, resample=Image.BICUBIC)
+                print(f"  ✓ 旋转素材 {rotation}°")
+
             # 获取白色填充图层，用于确定可见区域
             try:
                 template_layer_img = layer.topil()
@@ -229,8 +238,7 @@ class PrintArrangementManager:
                 template_layer_img = None
 
             if template_layer_img is None:
-                print(f"  跳过图层 {layer_index}: {layer.name} (无法读取模板图层像素)")
-                layer_index += 1
+                print(f"  跳过图层: {layer.name} (无法读取模板图层像素)")
                 continue
 
             if template_layer_img.mode != 'RGBA':
@@ -245,8 +253,7 @@ class PrintArrangementManager:
 
             # 检查是否有可见像素
             if not template_alpha.getbbox():
-                print(f"  跳过图层 {layer_index}: {layer.name} (模板图层无可见像素)")
-                layer_index += 1
+                print(f"  跳过图层: {layer.name} (模板图层无可见像素)")
                 continue
 
             # 将素材的RGB通道与白色图层的alpha通道合并
