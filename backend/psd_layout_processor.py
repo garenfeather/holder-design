@@ -27,13 +27,14 @@ class PSDLayoutProcessor:
     def __init__(self):
         pass
 
-    def create_white_filled_layout_psd(self, input_psd_path: str, output_psd_path: str) -> bool:
+    def create_white_filled_layout_psd(self, input_psd_path: str, output_psd_path: str, elements: list = None) -> bool:
         """
         从原始PSD提取每个图层的可见像素区域，填充白色后生成新PSD
 
         Args:
             input_psd_path: 输入PSD文件路径
             output_psd_path: 输出PSD文件路径
+            elements: 元素列表，包含每个图层对应的元素ID（用于设置图层名称）
 
         Returns:
             是否成功
@@ -61,8 +62,18 @@ class PSDLayoutProcessor:
                 if layer.is_group():
                     continue
 
-                layer_count += 1
+                # 根据layerIndex查找对应的元素
                 layer_name = layer.name
+                if elements:
+                    for element in elements:
+                        if element.get('layerIndex') == layer_count:
+                            layer_name = element['id']  # 使用元素ID作为图层名称
+                            print(f"  ✓ 处理图层 {layer_count}: {layer.name} → 重命名为元素ID: {layer_name}")
+                            break
+                    else:
+                        print(f"  ✓ 处理图层 {layer_count}: {layer_name} (未找到对应元素)")
+                else:
+                    print(f"  ✓ 处理图层 {layer_count}: {layer_name}")
 
                 # 获取图层的合成图像和边界框
                 layer_img = layer.composite()
@@ -83,7 +94,7 @@ class PSDLayoutProcessor:
                     'bbox': (left, top, right, bottom)
                 })
 
-                print(f"  ✓ 处理图层 {layer_count}: {layer_name}")
+                layer_count += 1
 
             print(f"\n📊 共处理 {len(processed_layers)} 个图层")
 

@@ -86,5 +86,27 @@
     },
     "createdAt": "2025-11-10T07:58:42.695096",
     "updatedAt": "2025-11-10T07:58:42.695096"
+  },
+  {
+    "id": "9db4bc43-ea3a-43fa-a798-bd385f864f72",
+    "name": "小镜框",
+    "cutSize": {
+      "width": 2.95,
+      "height": 3.34
+    },
+    "cutSizePixels": {
+      "width": 349,
+      "height": 395
+    },
+    "referenceSize": {
+      "width": 2.5,
+      "height": 3
+    },
+    "referenceSizePixels": {
+      "width": 296,
+      "height": 355
+    },
+    "createdAt": "2025-11-10T12:01:49.867892",
+    "updatedAt": "2025-11-10T12:01:49.867892"
   }
 ]

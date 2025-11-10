@@ -177,34 +177,34 @@ class PrintArrangementManager:
         die_mgr = DieManager()
 
         # 遍历PSD图层
-        layer_index = 0
         for layer in psd.descendants():
             if layer.is_group():
                 continue
 
+            # 图层名称就是元素ID（去除首尾空格和空字节）
+            element_id = layer.name.strip().rstrip('\x00')
+
             # 查找对应的布局元素
             element = None
             for elem in template.get('elements', []):
-                if elem.get('layerIndex') == layer_index:
+                if elem.get('id') == element_id:
                     element = elem
                     break
 
             if not element:
-                layer_index += 1
+                print(f"  跳过图层: {layer.name} (未找到对应元素)")
                 continue
 
             # 检查该元素是否有素材
-            material_id = material_mappings.get(element['id'])
+            material_id = material_mappings.get(element_id)
             if not material_id:
-                print(f"  跳过图层 {layer_index}: {layer.name} (无素材)")
-                layer_index += 1
+                print(f"  跳过图层: {layer.name} (无素材)")
                 continue
 
             # 加载素材图片
             material_file_path = die_mgr.get_material_file_path(material_id)
             if not material_file_path or not material_file_path.exists():
-                print(f"  跳过图层 {layer_index}: {layer.name} (素材文件不存在)")
-                layer_index += 1
+                print(f"  跳过图层: {layer.name} (素材文件不存在)")
                 continue
 
             # 获取图层位置信息
@@ -258,12 +258,11 @@ class PrintArrangementManager:
             canvas_layer.paste(masked_material, (left, top), masked_material)
 
             processed_layers.append({
-                'name': layer.name or f"Layer_{layer_index}",
+                'name': element.get('elementName', layer.name),
                 'image': canvas_layer
             })
 
-            print(f"  ✓ 处理图层 {layer_index}: {layer.name} (已替换素材，位置: {left},{top})")
-            layer_index += 1
+            print(f"  ✓ 处理图层: {layer.name} ({element.get('elementName')}) (已替换素材，位置: {left},{top})")
 
         return processed_layers
 
@@ -335,6 +334,27 @@ class PrintArrangementManager:
                 size=(width, height),
                 compression=nl.enums.Compression.raw,
             )
+
+            # 设置分辨率为 300 DPI
+            from config import processing_config
+            import struct
+            from pytoshop.image_resources import GenericImageResourceBlock
+
+            dpi = processing_config.DIE_ELEMENT_DEFAULT_DPI
+            # DPI 需要转换为 Fixed point: dpi * 65536
+            h_res = int(dpi * 65536)
+            v_res = int(dpi * 65536)
+
+            # 构建 Resolution Info 数据
+            # h_res_unit: 1 = pixels per inch, width_unit: 2 = inches
+            # v_res_unit: 1 = pixels per inch, height_unit: 2 = inches
+            res_data = struct.pack('>IHH IHH', h_res, 1, 2, v_res, 1, 2)
+
+            # 创建 Resolution Info block (Resource ID = 1005)
+            res_block = GenericImageResourceBlock(resource_id=1005, name='', data=res_data)
+
+            # 添加到 image_resources
+            psdfile.image_resources._blocks.append(res_block)
 
             # 写入文件
             with open(output_path, 'wb') as f:

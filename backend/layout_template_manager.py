@@ -164,7 +164,8 @@ class LayoutTemplateManager:
         print(f"\n🎨 生成白色填充布局PSD...")
         layout_success = psd_layout_processor.create_white_filled_layout_psd(
             input_psd_path=psd_file_path,
-            output_psd_path=layout_psd_path
+            output_psd_path=layout_psd_path,
+            elements=elements  # 传递元素列表，用于设置图层名称
         )
 
         if not layout_success:
