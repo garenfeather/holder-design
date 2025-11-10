@@ -259,7 +259,8 @@ class PrintArrangementManager:
 
             processed_layers.append({
                 'name': element.get('elementName', layer.name),
-                'image': canvas_layer
+                'image': canvas_layer,
+                'bbox': (left, top, right, bottom)  # 保存实际可见区域
             })
 
             print(f"  ✓ 处理图层: {layer.name} ({element.get('elementName')}) (已替换素材，位置: {left},{top})")
@@ -288,42 +289,69 @@ class PrintArrangementManager:
 
             for layer_data in layers:
                 pil_img = layer_data['image']
+                bbox = layer_data.get('bbox')
 
                 # 确保是RGBA模式
                 if pil_img.mode != 'RGBA':
                     pil_img = pil_img.convert('RGBA')
 
-                # 确保尺寸与画布一致
-                if pil_img.size != (width, height):
-                    pil_img = pil_img.copy().resize((width, height), Image.LANCZOS)
+                # 如果有bbox，裁剪到实际可见区域
+                if bbox:
+                    left, top, right, bottom = bbox
+                    # 裁剪画布大小的图像到实际可见区域
+                    cropped_img = pil_img.crop(bbox)
 
-                # 分离通道并转换为numpy数组
-                r, g, b, a = pil_img.split()
-                r_arr = np.array(r, dtype=np.uint8)
-                g_arr = np.array(g, dtype=np.uint8)
-                b_arr = np.array(b, dtype=np.uint8)
-                a_arr = np.array(a, dtype=np.uint8)
+                    # 分离通道并转换为numpy数组
+                    r, g, b, a = cropped_img.split()
+                    r_arr = np.array(r, dtype=np.uint8)
+                    g_arr = np.array(g, dtype=np.uint8)
+                    b_arr = np.array(b, dtype=np.uint8)
+                    a_arr = np.array(a, dtype=np.uint8)
 
-                # 构建通道字典
-                channels = {
-                    0: r_arr,   # Red
-                    1: g_arr,   # Green
-                    2: b_arr,   # Blue
-                    -1: a_arr,  # Alpha
-                }
+                    # 创建pytoshop图层对象（使用实际边界）
+                    lyr = nl.Image(
+                        name=layer_data['name'],
+                        top=top,
+                        left=left,
+                        bottom=bottom,
+                        right=right,
+                        channels={
+                            0: r_arr,
+                            1: g_arr,
+                            2: b_arr,
+                            -1: a_arr,
+                        },
+                        color_mode=nl.enums.ColorMode.rgb,
+                        visible=True,
+                        opacity=255,
+                    )
+                else:
+                    # 没有bbox，使用整个画布（旧逻辑）
+                    if pil_img.size != (width, height):
+                        pil_img = pil_img.copy().resize((width, height), Image.LANCZOS)
 
-                # 创建pytoshop图层对象
-                lyr = nl.Image(
-                    name=layer_data['name'],
-                    top=0,
-                    left=0,
-                    bottom=height,
-                    right=width,
-                    channels=channels,
-                    color_mode=nl.enums.ColorMode.rgb,
-                    visible=True,
-                    opacity=255,
-                )
+                    r, g, b, a = pil_img.split()
+                    r_arr = np.array(r, dtype=np.uint8)
+                    g_arr = np.array(g, dtype=np.uint8)
+                    b_arr = np.array(b, dtype=np.uint8)
+                    a_arr = np.array(a, dtype=np.uint8)
+
+                    lyr = nl.Image(
+                        name=layer_data['name'],
+                        top=0,
+                        left=0,
+                        bottom=height,
+                        right=width,
+                        channels={
+                            0: r_arr,
+                            1: g_arr,
+                            2: b_arr,
+                            -1: a_arr,
+                        },
+                        color_mode=nl.enums.ColorMode.rgb,
+                        visible=True,
+                        opacity=255,
+                    )
 
                 psd_layers.append(lyr)
 

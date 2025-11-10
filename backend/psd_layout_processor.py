@@ -175,18 +175,15 @@ class PSDLayoutProcessor:
                 layer_img = layer_data['image']
                 left, top, right, bottom = layer_data['bbox']
 
-                # 创建完整画布大小的透明图像
-                canvas_img = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
-
-                # 将图层图像粘贴到对应位置
-                canvas_img.paste(layer_img, (left, top))
-
                 # 确保是RGBA模式
-                if canvas_img.mode != 'RGBA':
-                    canvas_img = canvas_img.convert('RGBA')
+                if layer_img.mode != 'RGBA':
+                    layer_img = layer_img.convert('RGBA')
+
+                # 裁剪到实际可见区域（只保留图层自己的像素）
+                cropped_img = layer_img.crop((0, 0, right - left, bottom - top))
 
                 # 分离通道并转换为numpy数组
-                r, g, b, a = canvas_img.split()
+                r, g, b, a = cropped_img.split()
                 r_arr = np.array(r, dtype=np.uint8)
                 g_arr = np.array(g, dtype=np.uint8)
                 b_arr = np.array(b, dtype=np.uint8)
@@ -200,13 +197,13 @@ class PSDLayoutProcessor:
                     -1: a_arr,  # Alpha
                 }
 
-                # 创建pytoshop图层对象
+                # 创建pytoshop图层对象（使用实际边界）
                 psd_layer = nl.Image(
                     name=layer_name,
-                    top=0,
-                    left=0,
-                    bottom=canvas_height,
-                    right=canvas_width,
+                    top=top,
+                    left=left,
+                    bottom=bottom,
+                    right=right,
                     channels=channels,
                     color_mode=nl.enums.ColorMode.rgb,
                     visible=True,
