@@ -1,0 +1,2 @@
+# 忽略 backend/storage 下的缓存与生成文件
+storage/
