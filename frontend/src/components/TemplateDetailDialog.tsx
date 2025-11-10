@@ -146,34 +146,13 @@ export const TemplateDetailDialog: React.FC<TemplateDetailDialogProps> = ({
         </div>
 
         {/* 底部按钮 */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end p-6 border-t border-gray-200">
           <button
-            onClick={() => onDelete(template)}
-            className="flex items-center space-x-2 px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <Trash2 className="w-4 h-4" />
-            <span>删除模版</span>
+            关闭
           </button>
-
-          <div className="flex items-center space-x-2">
-            {onUseTemplate && (
-              <button
-                onClick={() => {
-                  onUseTemplate(template.id);
-                  onClose();
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                使用布局模板
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              关闭
-            </button>
-          </div>
         </div>
       </div>
     </div>

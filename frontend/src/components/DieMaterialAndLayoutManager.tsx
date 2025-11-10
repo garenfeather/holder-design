@@ -320,11 +320,13 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
                   {templates.map((template) => (
                     <div
                       key={template.id}
-                      className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => setSelectedTemplate(template)}
+                      className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                     >
-                      {/* 预览图 */}
-                      <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center">
+                      {/* 预览图 - 可点击查看详情 */}
+                      <div
+                        className="aspect-[4/3] bg-gray-100 flex items-center justify-center cursor-pointer"
+                        onClick={() => setSelectedTemplate(template)}
+                      >
                         <img
                           src={template.previewImage}
                           alt={template.name}
@@ -334,13 +336,41 @@ export const DieMaterialAndLayoutManager: React.FC<Props> = ({ onNavigateToPrint
 
                       {/* 信息 */}
                       <div className="p-3">
-                        <h4 className="font-medium text-gray-900 text-sm truncate">{template.name}</h4>
+                        <h4
+                          className="font-medium text-gray-900 text-sm truncate cursor-pointer hover:text-primary-600 transition-colors"
+                          onClick={() => setSelectedTemplate(template)}
+                        >
+                          {template.name}
+                        </h4>
                         <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                           <span>{template.paperSize} {template.paperOrientation === 'landscape' ? '横向' : '纵向'}</span>
                           <span>{template.elements.length} 个元素</span>
                         </div>
                         <div className="text-xs text-gray-400 mt-1">
                           {new Date(template.createdAt).toLocaleDateString('zh-CN')}
+                        </div>
+
+                        {/* 操作按钮 */}
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUseTemplate(template.id);
+                            }}
+                            className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                          >
+                            使用模版
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTemplate(template);
+                            }}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded hover:bg-red-100 transition-colors"
+                            title="删除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>

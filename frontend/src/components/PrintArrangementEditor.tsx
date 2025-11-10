@@ -25,6 +25,8 @@ interface Props {
   onClose: () => void;
 }
 
+type FillMode = 'single' | 'overwrite-all' | 'overwrite-remaining';
+
 export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose }) => {
   const [template, setTemplate] = useState<LayoutTemplate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,7 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
   const [materialCache, setMaterialCache] = useState<Map<string, DieMaterial>>(new Map()); // 缓存所有素材
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [fillMode, setFillMode] = useState<FillMode>('single'); // 新增：填充模式
   const SLOT_OVERDRAW_PX = 2; // 覆盖底层描边，避免浮点取整带来的缝隙
   // 排版画布保持原尺寸显示（不再支持缩放）
 
@@ -143,7 +146,7 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
 
   // 选择素材
   const handleSelectMaterial = (materialId: string) => {
-    if (!selectedElementId) return;
+    if (!selectedElementId || !template) return;
 
     // 缓存素材信息
     const material = availableMaterials.find(m => m.id === materialId);
@@ -154,7 +157,38 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
     }
 
     const newMappings = new Map(materialMappings);
-    newMappings.set(selectedElementId, materialId);
+
+    // 根据填充模式执行不同的逻辑
+    if (fillMode === 'single') {
+      // 仅添加当前: 只在点击的位置添加素材
+      newMappings.set(selectedElementId, materialId);
+    } else {
+      // 获取当前选中元素的 elementId
+      const selectedElement = template.elements.find(e => e.id === selectedElementId);
+      if (!selectedElement) return;
+
+      const targetElementId = selectedElement.elementId;
+
+      // 找到所有相同 elementId 的元素
+      const sameElements = template.elements.filter(e => e.elementId === targetElementId);
+
+      if (fillMode === 'overwrite-all') {
+        // 覆盖所有: 将所有该元素类型的位置都替换成当前素材
+        sameElements.forEach(element => {
+          newMappings.set(element.id, materialId);
+        });
+      } else if (fillMode === 'overwrite-remaining') {
+        // 覆盖剩余: 只将未填充的位置替换成当前素材
+        sameElements.forEach(element => {
+          if (!materialMappings.has(element.id)) {
+            newMappings.set(element.id, materialId);
+          }
+        });
+        // 当前点击的位置也要设置
+        newMappings.set(selectedElementId, materialId);
+      }
+    }
+
     setMaterialMappings(newMappings);
   };
 
@@ -238,6 +272,49 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
         </div>
 
         <div className="flex items-center gap-4">
+          {/* 填充模式切换 */}
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setFillMode('single')}
+              className={`
+                px-3 py-1.5 rounded text-sm font-medium transition-all
+                ${fillMode === 'single'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                }
+              `}
+              title="只在点击的位置添加素材"
+            >
+              仅添加当前
+            </button>
+            <button
+              onClick={() => setFillMode('overwrite-all')}
+              className={`
+                px-3 py-1.5 rounded text-sm font-medium transition-all
+                ${fillMode === 'overwrite-all'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                }
+              `}
+              title="将所有相同元素的位置都覆盖为当前素材"
+            >
+              覆盖所有
+            </button>
+            <button
+              onClick={() => setFillMode('overwrite-remaining')}
+              className={`
+                px-3 py-1.5 rounded text-sm font-medium transition-all
+                ${fillMode === 'overwrite-remaining'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                }
+              `}
+              title="将所有未填充的相同元素位置覆盖为当前素材"
+            >
+              覆盖剩下
+            </button>
+          </div>
+
           {/* 保存按钮 */}
           <button
             onClick={handleSaveArrangement}
