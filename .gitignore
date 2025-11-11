@@ -63,6 +63,7 @@ output_psd_slice/
 # Storage cache artifacts
 storage/cache/
 storage/temp/
+backend/storage/
 
 # Misc
 Thumbs.db
