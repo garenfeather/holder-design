@@ -218,7 +218,6 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
 
       const response = await apiService.createPrintArrangement(template.id, mappingsObj);
       if (response.success) {
-        alert('排版成品保存成功！');
         onClose();
       } else {
         alert(`保存失败: ${response.error || '未知错误'}`);

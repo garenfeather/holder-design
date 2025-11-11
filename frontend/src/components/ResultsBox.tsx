@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Package, AlertCircle, CheckCircle2, ChevronDown, Trash2, Filter, ArrowUpDown, ShieldQuestion } from 'lucide-react';
+import { RefreshCw, Package, AlertCircle, ChevronDown, Trash2, Filter, ArrowUpDown, ShieldQuestion } from 'lucide-react';
 import { Result } from '../types/index.ts';
 import { apiService } from '../services/api.ts';
 import { ResultCard } from './ResultCard.tsx';
@@ -16,7 +16,6 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
   const [selected, setSelected] = useState<Result | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -74,14 +73,12 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
     setError(null);
     const res = await apiService.deleteResult(r.id);
     if (res.success) {
-      setSuccess('删除成功');
       setResults(prev => prev.filter(x => x.id !== r.id));
       setSelectedIds(prev => {
         const next = new Set(prev);
         next.delete(r.id);
         return next;
       });
-      setTimeout(() => setSuccess(null), 2000);
     } else {
       setError(res.error || '删除失败');
     }
@@ -175,8 +172,6 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
               const outcome = await apiService.deleteResultsBulk(ids);
               if (outcome.ok.length) {
                 setResults(prev => prev.filter(x => !outcome.ok.includes(x.id)));
-                setSuccess(`已删除 ${outcome.ok.length} 条`);
-                setTimeout(() => setSuccess(null), 2000);
               }
               if (outcome.failed.length) {
                 setError(`删除失败 ${outcome.failed.length} 条`);
@@ -199,8 +194,6 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
               if (res.success && res.data) {
                 // 直接刷新列表
                 await loadResults();
-                setSuccess('清理完成');
-                setTimeout(() => setSuccess(null), 2000);
               } else {
                 setError(res.error || '清理失败');
               }
@@ -218,12 +211,6 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
         <div className="mb-4 flex items-start p-3 border border-red-200 bg-red-50 text-red-700 rounded-lg">
           <AlertCircle className="w-4 h-4 mt-0.5 mr-2" />
           <div className="text-sm">{error}</div>
-        </div>
-      )}
-      {success && (
-        <div className="mb-4 flex items-start p-3 border border-green-200 bg-green-50 text-green-700 rounded-lg">
-          <CheckCircle2 className="w-4 h-4 mt-0.5 mr-2" />
-          <div className="text-sm">{success}</div>
         </div>
       )}
 
@@ -263,8 +250,6 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
         result={selected}
         onDeleted={(id) => {
           setResults(prev => prev.filter(x => x.id !== id));
-          setSuccess('删除成功');
-          setTimeout(() => setSuccess(null), 2000);
         }}
       />
     </div>

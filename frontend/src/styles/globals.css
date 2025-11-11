@@ -25,11 +25,11 @@
   }
   
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-elegant;
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-elegant;
   }
   
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-primary-500 shadow-elegant;
+    @apply btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500 shadow-elegant;
   }
   
   .btn-danger {
@@ -52,16 +52,16 @@
   
   /* 输入框样式 */
   .input {
-    @apply w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
+    @apply w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200;
   }
   
   /* 上传区域样式 */
   .upload-zone {
-    @apply border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary-500 transition-colors duration-300;
+    @apply border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 transition-colors duration-300;
   }
-  
+
   .upload-zone-active {
-    @apply border-primary-500 bg-primary-50;
+    @apply border-blue-500 bg-blue-50;
   }
   
   /* 动画类 */

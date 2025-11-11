@@ -62,7 +62,6 @@ export const LayoutTemplateUpload: React.FC<Props> = ({ onUploadSuccess }) => {
         if (xhr.status === 200) {
           const response = JSON.parse(xhr.responseText);
           if (response.success) {
-            alert('上传成功！');
             onUploadSuccess();
           } else {
             // 匹配失败
