@@ -140,7 +140,7 @@ export const DieMaterialManager: React.FC = () => {
               已选择 {selectedMaterials.size} 个素材
             </span>
             <button
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               onClick={() => {
                 // TODO: 在阶段4实现跳转到排版功能
                 console.log('用于排版:', Array.from(selectedMaterials));

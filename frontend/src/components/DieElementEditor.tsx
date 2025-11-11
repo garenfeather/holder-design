@@ -649,7 +649,7 @@ export const DieElementEditor: React.FC<DieElementEditorProps> = ({
                     <div className="bg-red-500 bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                       红框：裁切线 ({cutSize.width} × {cutSize.height} cm)
                     </div>
-                    <div className="bg-blue-500 bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                    <div className="bg-blue-600 bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                       蓝框：参考线 ({referenceSize.width} × {referenceSize.height} cm)
                     </div>
                   </div>

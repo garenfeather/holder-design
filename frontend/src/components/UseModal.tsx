@@ -700,23 +700,23 @@ export const UseModal: React.FC<UseModalProps> = ({
           <div className="flex items-center justify-center mb-8">
               <div className="flex items-center space-x-4">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step === 'component' ? 'bg-primary-600 text-white' : step === 'upload' || step === 'edit' || step === 'generate' || step === 'result' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                step === 'component' ? 'bg-blue-600 text-white' : step === 'upload' || step === 'edit' || step === 'generate' || step === 'result' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>1</div>
               <div className="w-8 h-px bg-gray-300"></div>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step === 'upload' ? 'bg-primary-600 text-white' : step === 'edit' || step === 'generate' || step === 'result' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                step === 'upload' ? 'bg-blue-600 text-white' : step === 'edit' || step === 'generate' || step === 'result' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>2</div>
               <div className="w-8 h-px bg-gray-300"></div>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step === 'edit' ? 'bg-primary-600 text-white' : step === 'generate' || step === 'result' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                step === 'edit' ? 'bg-blue-600 text-white' : step === 'generate' || step === 'result' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>3</div>
               <div className="w-8 h-px bg-gray-300"></div>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step === 'generate' ? 'bg-primary-600 text-white' : step === 'result' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                step === 'generate' ? 'bg-blue-600 text-white' : step === 'result' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>4</div>
               <div className="w-8 h-px bg-gray-300"></div>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step === 'result' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600'
+                step === 'result' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>5</div>
             </div>
           </div>
@@ -948,7 +948,7 @@ export const UseModal: React.FC<UseModalProps> = ({
                   
                   {/* 固定的裁切框（不可拖拽） */}
                   <div
-                    className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none"
+                    className="absolute border-2 border-blue-600 bg-blue-600 bg-opacity-10 pointer-events-none"
                     style={{
                       left: `${(getEditorSize().width - cropBoxSize.width) / 2}px`,
                       top: `${(getEditorSize().height - cropBoxSize.height) / 2}px`,

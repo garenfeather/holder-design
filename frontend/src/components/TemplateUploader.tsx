@@ -118,7 +118,7 @@ export const TemplateUploader: React.FC<TemplateUploaderProps> = ({
       <div className="space-y-4">
         <div className="flex justify-center">
           <Upload 
-            className={`w-12 h-12 ${isDragOver ? 'text-primary-600' : 'text-gray-400'} transition-colors`}
+            className={`w-12 h-12 ${isDragOver ? 'text-blue-600' : 'text-gray-400'} transition-colors`}
           />
         </div>
         
@@ -128,7 +128,7 @@ export const TemplateUploader: React.FC<TemplateUploaderProps> = ({
           </h3>
           <p className="text-sm text-gray-500">
             拖拽 PSD 文件到此处，或
-            <label className="text-primary-600 hover:text-primary-700 cursor-pointer ml-1">
+            <label className="text-blue-600 hover:text-blue-700 cursor-pointer ml-1">
               点击选择文件
               <input
                 type="file"
@@ -150,7 +150,7 @@ export const TemplateUploader: React.FC<TemplateUploaderProps> = ({
     <div className="card p-6 animate-scale-in">
       <div className="flex items-start space-x-4">
         <div className="flex-shrink-0">
-          <FileText className="w-12 h-12 text-primary-600" />
+          <FileText className="w-12 h-12 text-blue-600" />
         </div>
         
         <div className="flex-1 min-w-0">
@@ -195,10 +195,10 @@ export const TemplateUploader: React.FC<TemplateUploaderProps> = ({
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
             {uploadProgress?.status === 'uploading' && (
-              <Loader className="w-6 h-6 text-primary-600 animate-spin" />
+              <Loader className="w-6 h-6 text-blue-600 animate-spin" />
             )}
             {uploadProgress?.status === 'processing' && (
-              <Loader className="w-6 h-6 text-primary-600 animate-spin" />
+              <Loader className="w-6 h-6 text-blue-600 animate-spin" />
             )}
             {uploadProgress?.status === 'complete' && (
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -231,7 +231,7 @@ export const TemplateUploader: React.FC<TemplateUploaderProps> = ({
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress?.progress || 0}%` }}
               />
             </div>

@@ -112,7 +112,7 @@ export const MaterialSelectionDialog: React.FC<MaterialSelectionDialogProps> = (
                       {material.fileName}
                     </div>
                     {selectedMaterial === material.id && (
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center">
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
@@ -178,7 +178,7 @@ export const MaterialSelectionDialog: React.FC<MaterialSelectionDialogProps> = (
           <button
             onClick={handleConfirm}
             disabled={!selectedMaterial}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             确认
           </button>

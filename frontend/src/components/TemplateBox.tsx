@@ -146,7 +146,7 @@ export const TemplateBox: React.FC<TemplateBoxProps> = ({
             onClick={() => setViewMode('grid')}
             className={`p-1.5 rounded ${
               viewMode === 'grid'
-                ? 'bg-primary-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -156,7 +156,7 @@ export const TemplateBox: React.FC<TemplateBoxProps> = ({
             onClick={() => setViewMode('list')}
             className={`p-1.5 rounded ${
               viewMode === 'list'
-                ? 'bg-primary-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >

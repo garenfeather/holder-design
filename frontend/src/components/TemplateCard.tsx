@@ -161,8 +161,8 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                 }}
                 className={`text-xs py-1.5 px-2 flex items-center whitespace-nowrap min-w-0 text-white font-medium transition-colors ${
                   showUseMenu
-                    ? 'bg-primary-700 rounded-t-md'
-                    : 'bg-primary-600 hover:bg-primary-700 rounded-md'
+                    ? 'bg-blue-700 rounded-t-md'
+                    : 'bg-blue-600 hover:bg-blue-700 rounded-md'
                 }`}
               >
                 <Download className="w-3 h-3 mr-1" />
@@ -172,7 +172,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
 
               {showUseMenu && (
                 <div
-                  className="use-dropdown-menu absolute left-0 top-full w-full bg-primary-600 rounded-b-md shadow-elegant-lg border-t border-primary-500 z-20"
+                  className="use-dropdown-menu absolute left-0 top-full w-full bg-blue-600 rounded-b-md shadow-elegant-lg border-t border-blue-500 z-20"
                   onMouseEnter={() => setShowUseMenu(true)}
                   onMouseLeave={() => setShowUseMenu(false)}
                 >
@@ -182,7 +182,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                         setShowUseMenu(false);
                         onUse(template);
                       }}
-                      className="w-full px-2 py-1.5 text-left text-xs text-white font-medium hover:bg-primary-700 transition-colors whitespace-nowrap border-b border-primary-500 last:border-b-0"
+                      className="w-full px-2 py-1.5 text-left text-xs text-white font-medium hover:bg-blue-700 transition-colors whitespace-nowrap border-b border-blue-500 last:border-b-0"
                     >
                       封底
                     </button>
@@ -193,7 +193,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                         setShowUseMenu(false);
                         onUseCover(template);
                       }}
-                      className="w-full px-2 py-1.5 text-left text-xs text-white font-medium hover:bg-primary-700 transition-colors whitespace-nowrap rounded-b-md"
+                      className="w-full px-2 py-1.5 text-left text-xs text-white font-medium hover:bg-blue-700 transition-colors whitespace-nowrap rounded-b-md"
                     >
                       封面
                     </button>

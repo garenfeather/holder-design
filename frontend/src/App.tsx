@@ -104,7 +104,7 @@ function App() {
             {/* Logo 和标题 */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">🎨</span>
                 </div>
                 <div>
@@ -134,7 +134,7 @@ function App() {
           <div className="inline-flex bg-white border border-gray-200 rounded-lg p-0.5">
             <button
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'templates' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                activeTab === 'templates' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('templates')}
             >
@@ -142,7 +142,7 @@ function App() {
             </button>
             <button
               className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'results' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                activeTab === 'results' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('results')}
             >
@@ -157,7 +157,7 @@ function App() {
           <div className="inline-flex bg-white border border-gray-200 rounded-lg p-0.5">
             <button
               className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'elements' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                activeTab === 'elements' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('elements')}
             >
@@ -165,7 +165,7 @@ function App() {
             </button>
             <button
               className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'materials' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                activeTab === 'materials' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('materials')}
             >
@@ -173,7 +173,7 @@ function App() {
             </button>
             <button
               className={`ml-0.5 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'arrangement' ? 'bg-primary-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                activeTab === 'arrangement' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
               }`}
               onClick={() => setActiveTab('arrangement')}
             >

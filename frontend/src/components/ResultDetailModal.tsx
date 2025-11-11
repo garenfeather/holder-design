@@ -160,7 +160,7 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
                     onClick={download}
                     disabled={!info?.psdExists}
                     className={`inline-flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors focus:outline-none ${
-                      info?.psdExists ? 'bg-primary-600 hover:bg-primary-700 text-white focus:ring-2 focus:ring-primary-300 focus:ring-offset-1' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      info?.psdExists ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-2 focus:ring-blue-300 focus:ring-offset-1' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
                     <Download className="w-4 h-4 mr-2" /> 下载PSD

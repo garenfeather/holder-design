@@ -377,8 +377,8 @@ export const PrintArrangementEditor: React.FC<Props> = ({ templateId, onClose })
                             transition-all hover:shadow-md
                             ${
                               materialMappings.get(selectedElementId) === material.id
-                                ? 'border-blue-500 ring-2 ring-blue-200'
-                                : 'border-gray-300 hover:border-blue-300'
+                                ? 'border-blue-600 ring-2 ring-blue-200'
+                                : 'border-gray-300 hover:border-blue-600'
                             }
                           `}
                           onClick={() => handleSelectMaterial(material.id)}

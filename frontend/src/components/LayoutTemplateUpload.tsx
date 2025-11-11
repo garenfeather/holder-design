@@ -122,7 +122,7 @@ export const LayoutTemplateUpload: React.FC<Props> = ({ onUploadSuccess }) => {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <Upload size={16} />
           {uploading ? '上传中...' : '上传 PSD 布局模板'}
@@ -132,7 +132,7 @@ export const LayoutTemplateUpload: React.FC<Props> = ({ onUploadSuccess }) => {
           <div className="mt-2">
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>

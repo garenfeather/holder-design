@@ -219,7 +219,7 @@ export const ComponentModal: React.FC<ComponentModalProps> = ({
                           />
                           <button
                             onClick={() => handleRename(component.id, editingName)}
-                            className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                            className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                           >
                             确定
                           </button>
@@ -245,7 +245,7 @@ export const ComponentModal: React.FC<ComponentModalProps> = ({
                       <div className="flex space-x-2">
                         <button
                           onClick={() => startEdit(component)}
-                          className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center space-x-2"
+                          className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center space-x-2"
                         >
                           <Edit3 className="w-4 h-4" />
                           <span>编辑</span>

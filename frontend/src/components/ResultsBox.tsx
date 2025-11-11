@@ -102,8 +102,8 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-semibold text-gray-900">生成素材管理</h2>
         <div className="flex items-center space-x-2">
-          <div className="hidden sm:flex items-center group border border-gray-200 border-l-gray-200 focus-within:border-primary-400 focus-within:border-l-gray-200 hover:border-primary-300 rounded-lg overflow-hidden bg-white shadow-sm focus-within:shadow transition-colors">
-            <Filter className="w-4 h-4 mx-2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+          <div className="hidden sm:flex items-center group border border-gray-200 border-l-gray-200 focus-within:border-blue-400 focus-within:border-l-gray-200 hover:border-blue-300 rounded-lg overflow-hidden bg-white shadow-sm focus-within:shadow transition-colors">
+            <Filter className="w-4 h-4 mx-2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -115,7 +115,7 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
           <button
             onClick={() => setSortOrder(p => (p === 'desc' ? 'asc' : 'desc'))}
             title="切换排序"
-            className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-gray-50 text-gray-700 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1 active:scale-95 transition"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-gray-50 text-gray-700 border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 active:scale-95 transition"
           >
             <ArrowUpDown className="w-4 h-4 mr-2" />
             {sortOrder === 'desc' ? '新→旧' : '旧→新'}
@@ -123,7 +123,7 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
 
           <button
             onClick={refresh}
-            className={`inline-flex items-center px-3 py-1.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1 active:scale-95 transition ${
+            className={`inline-flex items-center px-3 py-1.5 text-sm rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 active:scale-95 transition ${
               refreshing ? 'bg-gray-100 text-gray-600 border-gray-200 cursor-wait' : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
             }`}
             disabled={refreshing}
@@ -153,7 +153,7 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
                   }
                 }}
               />
-              <span className="pointer-events-none absolute left-0 top-0 w-4 h-4 rounded bg-primary-600 opacity-0 peer-checked:opacity-100" />
+              <span className="pointer-events-none absolute left-0 top-0 w-4 h-4 rounded bg-blue-600 opacity-0 peer-checked:opacity-100" />
               <span className="pointer-events-none absolute left-0 top-0 w-4 h-4 flex items-center justify-center opacity-0 peer-checked:opacity-100 z-10">
                 <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3">
                   <path d="M5 13l4 4L19 7" className="text-white" />
@@ -205,7 +205,7 @@ export const ResultsBox: React.FC<ResultsBoxProps> = ({ className = '' }) => {
                 setError(res.error || '清理失败');
               }
             }}
-            className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-gray-50 text-gray-700 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:ring-offset-1 active:scale-95 transition"
+            className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-gray-50 text-gray-700 border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-1 active:scale-95 transition"
             title="按数量和天数自动清理"
           >
             <ChevronDown className="w-4 h-4 mr-2" /> 清理旧结果
